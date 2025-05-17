@@ -11,4 +11,4 @@ import { Banco, BancoSchema } from './schemas/banco.schema';
   controllers: [BancosController],
   providers: [BancosService]
 })
-export class BancosModule {} 
+export class BancosModule { } 

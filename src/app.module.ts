@@ -6,11 +6,13 @@ import { BancosModule } from './bancos/bancos.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { InvestimentosModule } from './investimentos/investimentos.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { BancoAgentModule } from './banco-agent/banco-agent.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
@@ -33,6 +35,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     UsuariosModule,
     InvestimentosModule,
     DashboardModule,
+    BancoAgentModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

@@ -14,7 +14,7 @@ export class InvestimentosService {
     @InjectModel(Dashboard.name) private dashboardModel: Model<DashboardDocument>,
     @InjectModel(Banco.name) private bancoModel: Model<BancoDocument>,
     @InjectModel(Usuario.name) private usuarioModel: Model<UsuarioDocument>
-  ) {}
+  ) { }
 
   async create(createInvestimentoDto: CreateInvestimentoDto) {
     const { usuario_id, banco_id, valor_investimento, data_inicio, data_fim } = createInvestimentoDto;
@@ -34,15 +34,29 @@ export class InvestimentosService {
       (new Date(data_fim).getTime() - new Date(data_inicio).getTime()) / (1000 * 60 * 60 * 24)
     );
 
+    // Cálculo com juros compostos
     const cdi = banco.cdi / 100;
-    const rendimentoBruto = valor_investimento * (1 + cdi * diasCorridos / 365);
+    const taxaDiaria = Math.pow(1 + cdi, 1 / 365) - 1;
+    const rendimentoBruto = valor_investimento * Math.pow(1 + taxaDiaria, diasCorridos);
+
+    // Cálculo do IOF regressivo (máximo de 96% até 0% em 30 dias)
+    let taxaIOF = 0;
+    if (diasCorridos <= 30) {
+      taxaIOF = (30 - diasCorridos) * 0.0033; // 0.33% por dia restante
+    }
 
     // Cálculo de impostos
-    let impostoRenda = this.calcularImpostoRenda(banco, diasCorridos);
-    const valorImposto = rendimentoBruto * impostoRenda;
-    const valorLiquido = rendimentoBruto - valorImposto;
+    const impostoRenda = this.calcularImpostoRenda(banco, diasCorridos);
+    const lucro = rendimentoBruto - valor_investimento;
+    const valorIOF = lucro * taxaIOF;
+    const valorImpostoRenda = (lucro - valorIOF) * impostoRenda;
+    const valorLiquido = rendimentoBruto - valorIOF - valorImpostoRenda;
 
-    const percentualRendimento = ((rendimentoBruto - valor_investimento) / valor_investimento) * 100;
+    const percentualRendimento = ((valorLiquido - valor_investimento) / valor_investimento) * 100;
+
+    // Projeção do valor estimado para o final do período
+    const diasRestantes = Math.max(0, diasCorridos - Math.floor((new Date().getTime() - new Date(data_inicio).getTime()) / (1000 * 60 * 60 * 24)));
+    const valorEstimado = valor_investimento * Math.pow(1 + taxaDiaria, diasRestantes);
 
     // Criar dashboard
     const novoDashboard = new this.dashboardModel({
@@ -54,10 +68,10 @@ export class InvestimentosService {
       valor_bruto: parseFloat(rendimentoBruto.toFixed(2)),
       valor_liquido: parseFloat(valorLiquido.toFixed(2)),
       dias_corridos: diasCorridos,
-      imposto_renda: parseFloat(valorImposto.toFixed(2)),
-      IOF: parseFloat(banco.IOF_diario.toFixed(2)),
+      imposto_renda: parseFloat(valorImpostoRenda.toFixed(2)),
+      IOF: parseFloat(valorIOF.toFixed(2)),
       percentual_rendimento: parseFloat(percentualRendimento.toFixed(2)),
-      valor_estimado: parseFloat(valorLiquido.toFixed(2))
+      valor_estimado: parseFloat(valorEstimado.toFixed(2))
     });
 
     await novoDashboard.save();

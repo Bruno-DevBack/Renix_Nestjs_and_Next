@@ -1,16 +1,12 @@
-<<<<<<< HEAD
-=======
 # compiled output
 /dist
 /node_modules
 /build
 
->>>>>>> 3295cd972ebba006ab395516c7c39a1bcded2226
 # Logs
 logs
 *.log
 npm-debug.log*
-<<<<<<< HEAD
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
@@ -18,7 +14,7 @@ lerna-debug.log*
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-=======
+
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -53,7 +49,6 @@ lerna-debug.log*
 # temp directory
 .temp
 .tmp
->>>>>>> 3295cd972ebba006ab395516c7c39a1bcded2226
 
 # Runtime data
 pids
@@ -180,7 +175,6 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
-=======
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
->>>>>>> 3295cd972ebba006ab395516c7c39a1bcded2226
+
