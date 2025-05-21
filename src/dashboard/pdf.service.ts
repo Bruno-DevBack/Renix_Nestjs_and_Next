@@ -94,22 +94,29 @@ export class PdfService {
     private adicionarResumoDados(doc: typeof PDFDocument, dados: any, cores: any) {
         const startY = 150;
         const boxHeight = 90;
-        const boxWidth = (doc.page.width - 100) / 3;
+        const boxWidth = (doc.page.width - 100) / 4;
+
+        const valorRendido = dados.detalhes.valorRendido;
 
         const boxes = [
             { 
                 label: 'Total Investido', 
-                valor: `R$ ${dados.totalInvestido.toFixed(2)}`,
+                valor: `R$ ${(dados.totalInvestido || 0).toFixed(2)}`,
                 icon: '💰'
             },
             { 
+                label: 'Valor Rendido', 
+                valor: `R$ ${(valorRendido || 0).toFixed(2)}`,
+                icon: '💸'
+            },
+            { 
                 label: 'Rendimento Médio', 
-                valor: `${dados.rendimentoMedio.toFixed(2)}%`,
+                valor: `${(dados.rendimentoMedio || 0).toFixed(2)}%`,
                 icon: '📈'
             },
             { 
                 label: 'Nível de Risco', 
-                valor: `${dados.riscoMedio} de 5`,
+                valor: `${dados.riscoMedio || 0} de 5`,
                 icon: '⚠️'
             }
         ];
@@ -171,14 +178,16 @@ export class PdfService {
                .text(titulo, x + 15, startY + 15);
 
             const dados = index === 0 ? [
-                { label: 'Valor Bruto', valor: `R$ ${detalhes.valorBruto.toFixed(2)}` },
-                { label: 'Valor Líquido', valor: `R$ ${detalhes.valorLiquido.toFixed(2)}` },
-                { label: 'Imposto de Renda', valor: `R$ ${detalhes.impostoRenda.toFixed(2)}` },
-                { label: 'IOF', valor: `R$ ${detalhes.iof.toFixed(2)}` }
+                { label: 'Valor Investido', valor: `R$ ${(detalhes.valorInvestido || 0).toFixed(2)}` },
+                { label: 'Valor Bruto', valor: `R$ ${(detalhes.valorBruto || 0).toFixed(2)}` },
+                { label: 'Valor Líquido', valor: `R$ ${(detalhes.valorLiquido || 0).toFixed(2)}` },
+                { label: 'Valor Rendido', valor: `R$ ${(detalhes.valorRendido || 0).toFixed(2)}` },
+                { label: 'Imposto de Renda', valor: `R$ ${(detalhes.impostoRenda || 0).toFixed(2)}` },
+                { label: 'IOF', valor: `R$ ${(detalhes.iof || 0).toFixed(2)}` }
             ] : [
-                { label: 'SELIC', valor: `${detalhes.indicadoresMercado.selic.toFixed(2)}%` },
-                { label: 'CDI', valor: `${detalhes.indicadoresMercado.cdi.toFixed(2)}%` },
-                { label: 'IPCA', valor: `${detalhes.indicadoresMercado.ipca.toFixed(2)}%` }
+                { label: 'SELIC', valor: `${(detalhes.indicadoresMercado?.selic || 0).toFixed(2)}%` },
+                { label: 'CDI', valor: `${(detalhes.indicadoresMercado?.cdi || 0).toFixed(2)}%` },
+                { label: 'IPCA', valor: `${(detalhes.indicadoresMercado?.ipca || 0).toFixed(2)}%` }
             ];
 
             let currentY = startY + 45;
@@ -305,12 +314,18 @@ export class PdfService {
            .fillColor(cores.background)
            .fill();
 
+        // Texto do rodapé em uma única linha
         doc.fontSize(9)
            .fillColor(cores.primaria)
            .font('Helvetica-Bold')
-           .text('RENIX - Análise Inteligente de Investimentos', 0, doc.page.height - 25, { align: 'center' })
-           .fontSize(8)
-           .fillColor(cores.textoClaro)
-           .text('© ' + new Date().getFullYear() + ' Todos os direitos reservados', 0, doc.page.height - 15, { align: 'center' });
+           .text(
+             'RENIX - Análise Inteligente de Investimentos    |    © ' + new Date().getFullYear() + ' Todos os direitos reservados',
+             0,
+             doc.page.height - 22,
+             { 
+               align: 'center',
+               width: doc.page.width
+             }
+           );
     }
 } 

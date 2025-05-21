@@ -21,6 +21,8 @@ export class DashboardService {
       throw new NotFoundException('Dashboard não encontrado');
     }
 
+    const valorRendido = dashboard.rendimento.valor_liquido - dashboard.valor_investido;
+
     const dadosDashboard = {
       totalInvestido: dashboard.valor_investido,
       rendimentoMedio: dashboard.rendimento.rentabilidade_anualizada,
@@ -43,6 +45,8 @@ export class DashboardService {
       detalhes: {
         valorBruto: dashboard.rendimento.valor_bruto,
         valorLiquido: dashboard.rendimento.valor_liquido,
+        valorRendido: valorRendido,
+        valorInvestido: dashboard.valor_investido,
         impostoRenda: dashboard.rendimento.imposto_renda,
         iof: dashboard.rendimento.iof,
         outrasTaxas: dashboard.rendimento.outras_taxas,
@@ -56,6 +60,12 @@ export class DashboardService {
         }
       }
     };
+
+    console.log('Dados do Dashboard:', {
+      valor_investido: dashboard.valor_investido,
+      valor_liquido: dashboard.rendimento.valor_liquido,
+      valor_rendido: valorRendido
+    });
 
     return this.pdfService.gerarPdfDashboard(dadosDashboard);
   }

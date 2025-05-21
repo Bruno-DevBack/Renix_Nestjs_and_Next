@@ -7,6 +7,7 @@ export type DashboardDocument = Dashboard & Document;
 export interface RendimentoDetalhado {
   valor_bruto: number;
   valor_liquido: number;
+  valor_rendido: number;           // Valor efetivamente rendido (valor_liquido - valor_investido)
   rentabilidade_periodo: number;    // Rentabilidade no período (%)
   rentabilidade_anualizada: number; // Rentabilidade anualizada (%)
   imposto_renda: number;

@@ -59,6 +59,7 @@ export class InvestimentosService {
       rendimento: {
         valor_bruto: parseFloat(resultado.rendimentoBruto.toFixed(2)),
         valor_liquido: parseFloat(resultado.valorLiquido.toFixed(2)),
+        valor_rendido: parseFloat((resultado.valorLiquido - valor_investimento).toFixed(2)),
         rentabilidade_periodo: parseFloat(resultado.percentualRendimento.toFixed(2)),
         rentabilidade_anualizada: parseFloat((resultado.percentualRendimento * 365 / diasCorridos).toFixed(2)),
         imposto_renda: parseFloat(resultado.valorImpostoRenda.toFixed(2)),
@@ -83,6 +84,13 @@ export class InvestimentosService {
     });
 
     await novoDashboard.save();
+
+    console.log('Criando investimento com valores:', {
+      valor_investido: valor_investimento,
+      valor_bruto: resultado.rendimentoBruto,
+      valor_liquido: resultado.valorLiquido,
+      valor_rendido: resultado.valorLiquido - valor_investimento
+    });
 
     return {
       message: 'Investimento criado e dashboard atualizado com sucesso',
