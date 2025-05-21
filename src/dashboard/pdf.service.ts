@@ -1,10 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument = require('pdfkit');
-import { Chart, ChartConfiguration, registerables } from 'chart.js/auto';
-import { createCanvas } from 'canvas';
-
-// Registrar os elementos necessários do Chart.js
-Chart.register(...registerables);
 
 @Injectable()
 export class PdfService {
@@ -212,7 +207,7 @@ export class PdfService {
     private async adicionarGraficosETabela(doc: typeof PDFDocument, dados: any, cores: any) {
         const startY = 460;
 
-        // Box para o gráfico
+        // Box para a visualização
         doc.rect(40, startY, doc.page.width - 80, 280)
            .fillColor('#FFFFFF')
            .fill()
@@ -226,52 +221,48 @@ export class PdfService {
            .font('Helvetica-Bold')
            .text('Distribuição do Investimento', 55, startY + 15);
 
-        const canvas = createCanvas(380, 200);
-        const ctx = canvas.getContext('2d');
+        // Tabela de distribuição com barras de progresso
+        let y = startY + 50;
+        const barWidth = 200;
+        const labelWidth = 100;
+        const valueWidth = 50;
+        const total = dados.distribuicao.reduce((sum: number, d: any) => sum + d.valor, 0);
 
-        if (ctx) {
-            const config: ChartConfiguration = {
-                type: 'doughnut',
-                data: {
-                    labels: dados.distribuicao.map((d: any) => d.tipo),
-                    datasets: [{
-                        data: dados.distribuicao.map((d: any) => d.valor),
-                        backgroundColor: [
-                            cores.primaria,
-                            cores.secundaria,
-                            cores.terciaria,
-                            cores.destaque,
-                            cores.backgroundAlt
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: {
-                                font: { size: 11 },
-                                padding: 10
-                            }
-                        }
-                    }
-                }
-            };
+        // Cabeçalhos
+        doc.fontSize(10)
+           .fillColor(cores.texto)
+           .font('Helvetica-Bold')
+           .text('Tipo', 55, y)
+           .text('Valor (%)', 55 + labelWidth + barWidth + 10, y);
 
-            new Chart(ctx as unknown as HTMLCanvasElement, config);
+        y += 25;
 
-            // Centralizando o gráfico na página com posicionamento correto
-            doc.image(canvas.toBuffer('image/png'), 50, startY + 40, {
-                fit: [380, 200],
-                align: 'center'
-            });
-        }
+        // Dados com barras de progresso
+        const coresArray = [cores.primaria, cores.secundaria, cores.terciaria, cores.destaque, cores.backgroundAlt];
+        dados.distribuicao.forEach((item: any, index: number) => {
+            // Tipo de investimento
+            doc.fontSize(9)
+               .fillColor(cores.texto)
+               .font('Helvetica')
+               .text(item.tipo, 55, y);
 
-        // Tabela Comparativa compacta
-        const tableStartY = startY + 250;
+            // Barra de progresso
+            const barLength = (item.valor / total) * barWidth;
+            doc.rect(55 + labelWidth, y, barWidth, 15)
+               .fillColor(cores.background)
+               .fill();
+            doc.rect(55 + labelWidth, y, barLength, 15)
+               .fillColor(coresArray[index % coresArray.length])
+               .fill();
+
+            // Valor percentual
+            doc.text(`${item.valor.toFixed(1)}%`, 55 + labelWidth + barWidth + 10, y);
+
+            y += 25;
+        });
+
+        // Tabela Comparativa
+        const tableStartY = y + 30;
         const headers = ['Banco', 'Investimento', 'Rendimento', 'Risco', 'Liquidez'];
         const colWidth = (doc.page.width - 90) / headers.length;
 
@@ -293,18 +284,18 @@ export class PdfService {
            .stroke();
 
         // Dados da tabela
-        let y = tableStartY + 25;
+        let rowY = tableStartY + 25;
         dados.comparativo.slice(0, 4).forEach((item: any) => {
             doc.fontSize(9)
                .fillColor(cores.texto)
                .font('Helvetica')
-               .text(item.banco, 45, y, { width: colWidth - 5 })
-               .text(item.investimento, 45 + colWidth, y, { width: colWidth - 5 })
-               .text(`${item.rendimento.toFixed(2)}%`, 45 + (colWidth * 2), y, { width: colWidth - 5 })
-               .text(item.risco.toString(), 45 + (colWidth * 3), y, { width: colWidth - 5 })
-               .text(item.liquidez.toString(), 45 + (colWidth * 4), y, { width: colWidth - 5 });
+               .text(item.banco, 45, rowY, { width: colWidth - 5 })
+               .text(item.investimento, 45 + colWidth, rowY, { width: colWidth - 5 })
+               .text(`${item.rendimento.toFixed(2)}%`, 45 + (colWidth * 2), rowY, { width: colWidth - 5 })
+               .text(item.risco.toString(), 45 + (colWidth * 3), rowY, { width: colWidth - 5 })
+               .text(item.liquidez.toString(), 45 + (colWidth * 4), rowY, { width: colWidth - 5 });
 
-            y += 20;
+            rowY += 20;
         });
     }
 
