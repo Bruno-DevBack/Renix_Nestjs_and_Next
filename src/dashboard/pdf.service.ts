@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import * as PDFDocument from 'pdfkit';
-import { Chart } from 'chart.js';
-import { createCanvas } from 'canvas';
+import PDFDocument from 'pdfkit';
+import { Chart, ChartConfiguration, registerables } from 'chart.js/auto';
+import { createCanvas, Canvas } from 'canvas';
 import { Readable } from 'stream';
+
+// Registrar os elementos necessários do Chart.js
+Chart.register(...registerables);
 
 @Injectable()
 export class PdfService {
@@ -17,7 +20,7 @@ export class PdfService {
         });
 
         // Buffer para armazenar o PDF
-        const buffers = [];
+        const buffers: Buffer[] = [];
         doc.on('data', buffers.push.bind(buffers));
 
         // Cabeçalho
@@ -96,13 +99,15 @@ export class PdfService {
         const canvas = createCanvas(500, 300);
         const ctx = canvas.getContext('2d');
 
+        if (!ctx) return;
+
         // Gráfico de distribuição de investimentos
-        new Chart(ctx, {
+        const config: ChartConfiguration = {
             type: 'doughnut',
             data: {
-                labels: dados.distribuicao.map(d => d.tipo),
+                labels: dados.distribuicao.map((d: any) => d.tipo),
                 datasets: [{
-                    data: dados.distribuicao.map(d => d.valor),
+                    data: dados.distribuicao.map((d: any) => d.valor),
                     backgroundColor: [
                         '#1a237e', '#0d47a1', '#1565c0',
                         '#1976d2', '#1e88e5', '#2196f3'
@@ -117,10 +122,12 @@ export class PdfService {
                     }
                 }
             }
-        });
+        };
+
+        new Chart(ctx as unknown as HTMLCanvasElement, config);
 
         // Adicionar gráfico ao PDF
-        doc.image(canvas.toBuffer(), {
+        doc.image(canvas.toBuffer('image/png'), {
             fit: [400, 300],
             align: 'center'
         });
@@ -131,13 +138,15 @@ export class PdfService {
         const canvasRendimentos = createCanvas(500, 300);
         const ctxRendimentos = canvasRendimentos.getContext('2d');
 
-        new Chart(ctxRendimentos, {
+        if (!ctxRendimentos) return;
+
+        const configRendimentos: ChartConfiguration = {
             type: 'bar',
             data: {
-                labels: dados.rendimentos.map(r => r.banco),
+                labels: dados.rendimentos.map((r: any) => r.banco),
                 datasets: [{
                     label: 'Rendimento (%)',
-                    data: dados.rendimentos.map(r => r.valor),
+                    data: dados.rendimentos.map((r: any) => r.valor),
                     backgroundColor: '#1976d2'
                 }]
             },
@@ -149,9 +158,11 @@ export class PdfService {
                     }
                 }
             }
-        });
+        };
 
-        doc.image(canvasRendimentos.toBuffer(), {
+        new Chart(ctxRendimentos as unknown as HTMLCanvasElement, configRendimentos);
+
+        doc.image(canvasRendimentos.toBuffer('image/png'), {
             fit: [400, 300],
             align: 'center'
         });

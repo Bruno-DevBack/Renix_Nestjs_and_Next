@@ -34,6 +34,9 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
 
-  await app.listen(process.env.PORT ?? 3000);
+  // Usando porta 3333 como padrão para evitar conflitos
+  const port = process.env.PORT ?? 3333;
+  await app.listen(port);
+  console.log(`Aplicação rodando na porta ${port}`);
 }
 bootstrap();
