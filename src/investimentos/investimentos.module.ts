@@ -6,6 +6,7 @@ import { Investimento, InvestimentoSchema } from './schemas/investimento.schema'
 import { Dashboard, DashboardSchema } from '../dashboard/schemas/dashboard.schema';
 import { Banco, BancoSchema } from '../bancos/schemas/banco.schema';
 import { Usuario, UsuarioSchema } from '../usuarios/schemas/usuario.schema';
+import { CalculoInvestimentoService } from './services/calculo-investimento.service';
 
 @Module({
   imports: [
@@ -17,6 +18,6 @@ import { Usuario, UsuarioSchema } from '../usuarios/schemas/usuario.schema';
     ]),
   ],
   controllers: [InvestimentosController],
-  providers: [InvestimentosService],
+  providers: [InvestimentosService, CalculoInvestimentoService],
 })
 export class InvestimentosModule {} 

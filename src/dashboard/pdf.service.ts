@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import PDFDocument from 'pdfkit';
+import PDFDocument = require('pdfkit');
 import { Chart, ChartConfiguration, registerables } from 'chart.js/auto';
-import { createCanvas, Canvas } from 'canvas';
-import { Readable } from 'stream';
+import { createCanvas } from 'canvas';
 
 // Registrar os elementos necessários do Chart.js
 Chart.register(...registerables);
@@ -12,243 +11,306 @@ export class PdfService {
     async gerarPdfDashboard(dadosDashboard: any): Promise<Buffer> {
         const doc = new PDFDocument({
             size: 'A4',
-            margin: 50,
+            margin: 40,
+            bufferPages: true,
+            autoFirstPage: true,
             info: {
                 Title: 'Análise de Investimentos - Renix',
                 Author: 'Renix Finance',
             },
         });
 
-        // Buffer para armazenar o PDF
         const buffers: Buffer[] = [];
         doc.on('data', buffers.push.bind(buffers));
 
-        // Cabeçalho
-        this.adicionarCabecalho(doc);
+        // Define cores padrão com uma paleta em tons de verde
+        const cores = {
+            primaria: '#1B5E20',      // Verde escuro principal
+            secundaria: '#2E7D32',     // Verde escuro secundário
+            terciaria: '#388E3C',      // Verde médio
+            background: '#E8F5E9',     // Verde claro suave
+            backgroundAlt: '#C8E6C9',  // Verde claro médio
+            destaque: '#43A047',       // Verde destaque
+            texto: '#212121',          // Quase preto para texto
+            textoClaro: '#757575'      // Cinza para texto secundário
+        };
 
-        // Resumo dos Dados
-        this.adicionarResumoDados(doc, dadosDashboard);
+        // Cabeçalho com design melhorado
+        this.adicionarCabecalho(doc, cores);
 
-        // Gráficos
-        await this.adicionarGraficos(doc, dadosDashboard);
+        // Resumo dos Dados com layout aprimorado
+        this.adicionarResumoDados(doc, dadosDashboard, cores);
 
-        // Tabela Comparativa
-        this.adicionarTabelaComparativa(doc, dadosDashboard);
+        // Detalhes do Investimento e Indicadores lado a lado
+        this.adicionarDetalhesEIndicadores(doc, dadosDashboard.detalhes, cores);
 
-        // Rodapé
-        this.adicionarRodape(doc);
+        // Gráficos e Tabela na mesma página
+        await this.adicionarGraficosETabela(doc, dadosDashboard, cores);
 
-        // Finalizar o documento
+        // Rodapé único
+        this.adicionarRodape(doc, cores);
+
         doc.end();
-
         return new Promise((resolve) => {
-            doc.on('end', () => {
-                resolve(Buffer.concat(buffers));
+            doc.on('end', () => resolve(Buffer.concat(buffers)));
+        });
+    }
+
+    private adicionarCabecalho(doc: typeof PDFDocument, cores: any) {
+        // Faixa superior elegante
+        doc.rect(0, 0, doc.page.width, 130)
+           .fillColor(cores.background)
+           .fill();
+
+        // Linha decorativa
+        doc.rect(40, 120, doc.page.width - 80, 2)
+           .fillColor(cores.primaria)
+           .fill();
+
+        // Logo RENIX com destaque
+        doc.fontSize(42)
+           .fillColor(cores.primaria)
+           .font('Helvetica-Bold')
+           .text('RENIX', 40, 35, { align: 'center' });
+
+        // Subtítulo elegante
+        doc.fontSize(20)
+           .fillColor(cores.secundaria)
+           .font('Helvetica')
+           .text('Análise de Investimentos', 40, 80, { align: 'center' });
+
+        // Data com formatação elegante
+        const dataFormatada = new Date().toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        });
+
+        doc.fontSize(10)
+           .fillColor(cores.textoClaro)
+           .text(dataFormatada, 40, 105, { align: 'center' });
+    }
+
+    private adicionarResumoDados(doc: typeof PDFDocument, dados: any, cores: any) {
+        const startY = 150;
+        const boxHeight = 90;
+        const boxWidth = (doc.page.width - 100) / 3;
+
+        const boxes = [
+            { 
+                label: 'Total Investido', 
+                valor: `R$ ${dados.totalInvestido.toFixed(2)}`,
+                icon: '💰'
+            },
+            { 
+                label: 'Rendimento Médio', 
+                valor: `${dados.rendimentoMedio.toFixed(2)}%`,
+                icon: '📈'
+            },
+            { 
+                label: 'Nível de Risco', 
+                valor: `${dados.riscoMedio} de 5`,
+                icon: '⚠️'
+            }
+        ];
+
+        boxes.forEach((box, index) => {
+            const x = 40 + (index * (boxWidth + 10));
+            
+            // Box com sombra suave
+            doc.rect(x + 2, startY + 2, boxWidth, boxHeight)
+               .fillColor('#E0E0E0')
+               .fill();
+
+            // Box principal com borda
+            doc.rect(x, startY, boxWidth, boxHeight)
+               .fillColor('#FFFFFF')
+               .fill()
+               .strokeColor(cores.backgroundAlt)
+               .lineWidth(1)
+               .stroke();
+
+            // Ícone
+            doc.fontSize(22)
+               .text(box.icon, x + 15, startY + 15);
+
+            // Label
+            doc.fontSize(12)
+               .fillColor(cores.textoClaro)
+               .font('Helvetica')
+               .text(box.label, x + 15, startY + 45);
+
+            // Valor
+            doc.fontSize(18)
+               .fillColor(cores.texto)
+               .font('Helvetica-Bold')
+               .text(box.valor, x + 15, startY + 60);
+        });
+    }
+
+    private adicionarDetalhesEIndicadores(doc: typeof PDFDocument, detalhes: any, cores: any) {
+        const startY = 260;
+        const colWidth = (doc.page.width - 90) / 2;
+
+        // Seções com design moderno
+        ['Detalhes do Investimento', 'Indicadores de Mercado'].forEach((titulo, index) => {
+            const x = 40 + (index * (colWidth + 10));
+            
+            // Box com fundo e borda
+            doc.rect(x, startY, colWidth, 180)
+               .fillColor('#FFFFFF')
+               .fill()
+               .strokeColor(cores.backgroundAlt)
+               .lineWidth(1)
+               .stroke();
+
+            // Título da seção
+            doc.fontSize(16)
+               .fillColor(cores.primaria)
+               .font('Helvetica-Bold')
+               .text(titulo, x + 15, startY + 15);
+
+            const dados = index === 0 ? [
+                { label: 'Valor Bruto', valor: `R$ ${detalhes.valorBruto.toFixed(2)}` },
+                { label: 'Valor Líquido', valor: `R$ ${detalhes.valorLiquido.toFixed(2)}` },
+                { label: 'Imposto de Renda', valor: `R$ ${detalhes.impostoRenda.toFixed(2)}` },
+                { label: 'IOF', valor: `R$ ${detalhes.iof.toFixed(2)}` }
+            ] : [
+                { label: 'SELIC', valor: `${detalhes.indicadoresMercado.selic.toFixed(2)}%` },
+                { label: 'CDI', valor: `${detalhes.indicadoresMercado.cdi.toFixed(2)}%` },
+                { label: 'IPCA', valor: `${detalhes.indicadoresMercado.ipca.toFixed(2)}%` }
+            ];
+
+            let currentY = startY + 45;
+            dados.forEach(item => {
+                // Label
+                doc.fontSize(11)
+                   .fillColor(cores.textoClaro)
+                   .font('Helvetica')
+                   .text(item.label, x + 15, currentY);
+
+                // Valor
+                doc.fontSize(12)
+                   .fillColor(cores.texto)
+                   .font('Helvetica-Bold')
+                   .text(item.valor, x + 15, currentY + 20);
+
+                currentY += 40;
             });
         });
     }
 
-    private adicionarCabecalho(doc: PDFKit.PDFDocument) {
-        doc
-            .fontSize(24)
-            .fillColor('#1a237e')
-            .font('Helvetica-Bold')
-            .text('Análise de Investimentos', { align: 'center' })
-            .moveDown(0.5);
+    private async adicionarGraficosETabela(doc: typeof PDFDocument, dados: any, cores: any) {
+        const startY = 460;
 
-        doc
-            .fontSize(14)
-            .fillColor('#424242')
-            .text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { align: 'center' })
-            .moveDown(2);
-    }
+        // Box para o gráfico
+        doc.rect(40, startY, doc.page.width - 80, 280)
+           .fillColor('#FFFFFF')
+           .fill()
+           .strokeColor(cores.backgroundAlt)
+           .lineWidth(1)
+           .stroke();
 
-    private adicionarResumoDados(doc: PDFKit.PDFDocument, dados: any) {
-        // Caixa de resumo
-        doc
-            .rect(50, doc.y, 495, 100)
-            .fillColor('#f5f5f5')
-            .fill();
+        // Título da seção
+        doc.fontSize(16)
+           .fillColor(cores.primaria)
+           .font('Helvetica-Bold')
+           .text('Distribuição do Investimento', 55, startY + 15);
 
-        doc.y += 20;
-
-        // Dados principais
-        const colunas = [
-            { label: 'Total Investido', valor: `R$ ${dados.totalInvestido.toFixed(2)}` },
-            { label: 'Rendimento Médio', valor: `${dados.rendimentoMedio}%` },
-            { label: 'Risco Médio', valor: dados.riscoMedio },
-        ];
-
-        let x = 70;
-        colunas.forEach(coluna => {
-            doc
-                .fontSize(12)
-                .fillColor('#616161')
-                .text(coluna.label, x, doc.y)
-                .fontSize(16)
-                .fillColor('#1a237e')
-                .text(coluna.valor, x, doc.y + 20);
-            x += 165;
-        });
-
-        doc.moveDown(4);
-    }
-
-    private async adicionarGraficos(doc: PDFKit.PDFDocument, dados: any) {
-        // Criar canvas para o gráfico de distribuição
-        const canvas = createCanvas(500, 300);
+        const canvas = createCanvas(380, 200);
         const ctx = canvas.getContext('2d');
 
-        if (!ctx) return;
-
-        // Gráfico de distribuição de investimentos
-        const config: ChartConfiguration = {
-            type: 'doughnut',
-            data: {
-                labels: dados.distribuicao.map((d: any) => d.tipo),
-                datasets: [{
-                    data: dados.distribuicao.map((d: any) => d.valor),
-                    backgroundColor: [
-                        '#1a237e', '#0d47a1', '#1565c0',
-                        '#1976d2', '#1e88e5', '#2196f3'
-                    ]
-                }]
-            },
-            options: {
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Distribuição dos Investimentos'
+        if (ctx) {
+            const config: ChartConfiguration = {
+                type: 'doughnut',
+                data: {
+                    labels: dados.distribuicao.map((d: any) => d.tipo),
+                    datasets: [{
+                        data: dados.distribuicao.map((d: any) => d.valor),
+                        backgroundColor: [
+                            cores.primaria,
+                            cores.secundaria,
+                            cores.terciaria,
+                            cores.destaque,
+                            cores.backgroundAlt
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: { size: 11 },
+                                padding: 10
+                            }
+                        }
                     }
                 }
-            }
-        };
+            };
 
-        new Chart(ctx as unknown as HTMLCanvasElement, config);
+            new Chart(ctx as unknown as HTMLCanvasElement, config);
 
-        // Adicionar gráfico ao PDF
-        doc.image(canvas.toBuffer('image/png'), {
-            fit: [400, 300],
-            align: 'center'
-        });
+            // Centralizando o gráfico na página com posicionamento correto
+            doc.image(canvas.toBuffer('image/png'), 50, startY + 40, {
+                fit: [380, 200],
+                align: 'center'
+            });
+        }
 
-        doc.moveDown(2);
-
-        // Gráfico de rendimentos
-        const canvasRendimentos = createCanvas(500, 300);
-        const ctxRendimentos = canvasRendimentos.getContext('2d');
-
-        if (!ctxRendimentos) return;
-
-        const configRendimentos: ChartConfiguration = {
-            type: 'bar',
-            data: {
-                labels: dados.rendimentos.map((r: any) => r.banco),
-                datasets: [{
-                    label: 'Rendimento (%)',
-                    data: dados.rendimentos.map((r: any) => r.valor),
-                    backgroundColor: '#1976d2'
-                }]
-            },
-            options: {
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Comparativo de Rendimentos'
-                    }
-                }
-            }
-        };
-
-        new Chart(ctxRendimentos as unknown as HTMLCanvasElement, configRendimentos);
-
-        doc.image(canvasRendimentos.toBuffer('image/png'), {
-            fit: [400, 300],
-            align: 'center'
-        });
-
-        doc.moveDown(2);
-    }
-
-    private adicionarTabelaComparativa(doc: PDFKit.PDFDocument, dados: any) {
-        // Título da tabela
-        doc
-            .fontSize(16)
-            .fillColor('#1a237e')
-            .text('Comparativo Detalhado', { align: 'center' })
-            .moveDown(1);
+        // Tabela Comparativa compacta
+        const tableStartY = startY + 250;
+        const headers = ['Banco', 'Investimento', 'Rendimento', 'Risco', 'Liquidez'];
+        const colWidth = (doc.page.width - 90) / headers.length;
 
         // Cabeçalho da tabela
-        const headers = ['Banco', 'Investimento', 'Rendimento', 'Risco', 'Liquidez'];
-        let y = doc.y;
-        let x = 50;
-
-        // Estilo do cabeçalho
-        doc
-            .rect(x, y, 495, 30)
-            .fillColor('#e3f2fd')
-            .fill()
-            .fillColor('#1a237e');
-
         headers.forEach((header, i) => {
-            doc
-                .fontSize(12)
-                .text(header, x + (i * 99), y + 10, { width: 99, align: 'center' });
+            doc.fontSize(10)
+               .fillColor(cores.texto)
+               .font('Helvetica-Bold')
+               .text(header, 45 + (i * colWidth), tableStartY, { 
+                   width: colWidth - 5, 
+                   align: 'left' 
+               });
         });
 
+        // Linha separadora
+        doc.moveTo(40, tableStartY + 20)
+           .lineTo(doc.page.width - 40, tableStartY + 20)
+           .strokeColor(cores.backgroundAlt)
+           .stroke();
+
         // Dados da tabela
-        y += 30;
-        dados.comparativo.forEach((item, index) => {
-            const cor = index % 2 === 0 ? '#ffffff' : '#f5f5f5';
-            doc
-                .rect(x, y, 495, 25)
-                .fillColor(cor)
-                .fill()
-                .fillColor('#424242');
+        let y = tableStartY + 25;
+        dados.comparativo.slice(0, 4).forEach((item: any) => {
+            doc.fontSize(9)
+               .fillColor(cores.texto)
+               .font('Helvetica')
+               .text(item.banco, 45, y, { width: colWidth - 5 })
+               .text(item.investimento, 45 + colWidth, y, { width: colWidth - 5 })
+               .text(`${item.rendimento.toFixed(2)}%`, 45 + (colWidth * 2), y, { width: colWidth - 5 })
+               .text(item.risco.toString(), 45 + (colWidth * 3), y, { width: colWidth - 5 })
+               .text(item.liquidez.toString(), 45 + (colWidth * 4), y, { width: colWidth - 5 });
 
-            doc
-                .fontSize(10)
-                .text(item.banco, x, y + 7, { width: 99, align: 'center' })
-                .text(item.investimento, x + 99, y + 7, { width: 99, align: 'center' })
-                .text(`${item.rendimento}%`, x + 198, y + 7, { width: 99, align: 'center' })
-                .text(item.risco, x + 297, y + 7, { width: 99, align: 'center' })
-                .text(item.liquidez, x + 396, y + 7, { width: 99, align: 'center' });
-
-            y += 25;
+            y += 20;
         });
     }
 
-    private adicionarRodape(doc: PDFKit.PDFDocument) {
-        const pageCount = doc.bufferedPageRange().count;
+    private adicionarRodape(doc: typeof PDFDocument, cores: any) {
+        // Rodapé único na primeira página
+        doc.rect(0, doc.page.height - 35, doc.page.width, 35)
+           .fillColor(cores.background)
+           .fill();
 
-        for (let i = 0; i < pageCount; i++) {
-            doc.switchToPage(i);
-
-            // Linha separadora
-            doc
-                .moveTo(50, doc.page.height - 50)
-                .lineTo(545, doc.page.height - 50)
-                .strokeColor('#e0e0e0')
-                .stroke();
-
-            // Texto do rodapé
-            doc
-                .fontSize(8)
-                .fillColor('#9e9e9e')
-                .text(
-                    'Renix Finance - Análise Inteligente de Investimentos',
-                    50,
-                    doc.page.height - 40,
-                    { align: 'center' }
-                );
-
-            // Número da página
-            doc.text(
-                `Página ${i + 1} de ${pageCount}`,
-                50,
-                doc.page.height - 25,
-                { align: 'center' }
-            );
-        }
+        doc.fontSize(9)
+           .fillColor(cores.primaria)
+           .font('Helvetica-Bold')
+           .text('RENIX - Análise Inteligente de Investimentos', 0, doc.page.height - 25, { align: 'center' })
+           .fontSize(8)
+           .fillColor(cores.textoClaro)
+           .text('© ' + new Date().getFullYear() + ' Todos os direitos reservados', 0, doc.page.height - 15, { align: 'center' });
     }
 } 

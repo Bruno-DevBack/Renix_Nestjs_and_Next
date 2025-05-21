@@ -61,26 +61,35 @@ export class Dashboard {
 
   @Prop({
     type: {
-      valor_bruto: Number,
-      valor_liquido: Number,
-      rentabilidade_periodo: Number,
-      rentabilidade_anualizada: Number,
-      imposto_renda: Number,
-      iof: Number,
-      outras_taxas: Number
+      valor_bruto: { type: Number, required: true },
+      valor_liquido: { type: Number, required: true },
+      rentabilidade_periodo: { type: Number, required: true },
+      rentabilidade_anualizada: { type: Number, required: true },
+      imposto_renda: { type: Number, required: true },
+      iof: { type: Number, required: true },
+      outras_taxas: { type: Number, default: 0 }
     },
     required: true
   })
   rendimento: RendimentoDetalhado;
 
-  @Prop({ required: true })
+  @Prop({ required: true, default: 0 })
   valor_atual: number;         // Valor atual do investimento
 
-  @Prop({ required: true })
+  @Prop({ required: true, default: 0 })
   valor_projetado: number;     // Valor projetado para o vencimento
 
-  @Prop({ type: Object })
-  indicadores_mercado: {       // Indicadores de mercado relacionados
+  @Prop({
+    type: {
+      selic: Number,
+      cdi: Number,
+      ipca: Number,
+      ibovespa: Number,
+      ifix: Number
+    },
+    required: false
+  })
+  indicadores_mercado?: {       // Indicadores de mercado relacionados
     selic: number;
     cdi: number;
     ipca: number;
@@ -88,17 +97,24 @@ export class Dashboard {
     ifix?: number;          // Para fundos imobiliários
   };
 
-  @Prop({ type: [String] })
+  @Prop({ type: [String], default: [] })
   alertas: string[];          // Alertas importantes sobre o investimento
 
-  @Prop({ type: Object })
-  comparativo_mercado: {      // Comparativo com outros investimentos
+  @Prop({
+    type: {
+      versus_poupanca: Number,
+      versus_cdi: Number,
+      versus_ipca: Number
+    },
+    required: false
+  })
+  comparativo_mercado?: {      // Comparativo com outros investimentos
     versus_poupanca: number;
     versus_cdi: number;
     versus_ipca: number;
   };
 
-  @Prop({ type: [Object], required: true })
+  @Prop({ type: [Object], default: [] })
   investimentos: InvestimentoDashboard[];
 }
 

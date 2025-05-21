@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Dashboard, DashboardDocument } from './schemas/dashboard.schema';
@@ -18,16 +18,43 @@ export class DashboardService {
   async gerarPdf(id: string): Promise<Buffer> {
     const dashboard = await this.dashboardModel.findById(id);
     if (!dashboard) {
-      throw new Error('Dashboard não encontrado');
+      throw new NotFoundException('Dashboard não encontrado');
     }
 
     const dadosDashboard = {
-      totalInvestido: this.calcularTotalInvestido(dashboard),
-      rendimentoMedio: this.calcularRendimentoMedio(dashboard),
-      riscoMedio: this.calcularRiscoMedio(dashboard),
-      distribuicao: this.calcularDistribuicao(dashboard),
-      rendimentos: this.calcularRendimentos(dashboard),
-      comparativo: this.gerarComparativo(dashboard)
+      totalInvestido: dashboard.valor_investido,
+      rendimentoMedio: dashboard.rendimento.rentabilidade_anualizada,
+      riscoMedio: dashboard.investimentos[0].risco,
+      distribuicao: [{
+        tipo: dashboard.tipo_investimento,
+        valor: dashboard.valor_investido
+      }],
+      rendimentos: [{
+        banco: dashboard.nome_banco,
+        valor: dashboard.rendimento.rentabilidade_periodo
+      }],
+      comparativo: [{
+        banco: dashboard.nome_banco,
+        investimento: dashboard.tipo_investimento,
+        rendimento: dashboard.rendimento.rentabilidade_periodo,
+        risco: dashboard.investimentos[0].risco,
+        liquidez: dashboard.investimentos[0].liquidez
+      }],
+      detalhes: {
+        valorBruto: dashboard.rendimento.valor_bruto,
+        valorLiquido: dashboard.rendimento.valor_liquido,
+        impostoRenda: dashboard.rendimento.imposto_renda,
+        iof: dashboard.rendimento.iof,
+        outrasTaxas: dashboard.rendimento.outras_taxas,
+        dataInicio: dashboard.data_inicio,
+        dataFim: dashboard.data_fim,
+        diasCorridos: dashboard.dias_corridos,
+        indicadoresMercado: dashboard.indicadores_mercado || {
+          selic: 0,
+          cdi: 0,
+          ipca: 0
+        }
+      }
     };
 
     return this.pdfService.gerarPdfDashboard(dadosDashboard);

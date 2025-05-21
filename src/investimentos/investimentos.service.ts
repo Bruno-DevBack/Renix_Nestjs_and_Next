@@ -6,6 +6,7 @@ import { Dashboard, DashboardDocument } from '../dashboard/schemas/dashboard.sch
 import { Banco, BancoDocument } from '../bancos/schemas/banco.schema';
 import { Usuario, UsuarioDocument } from '../usuarios/schemas/usuario.schema';
 import { CreateInvestimentoDto } from './dto/create-investimento.dto';
+import { CalculoInvestimentoService } from './services/calculo-investimento.service';
 
 @Injectable()
 export class InvestimentosService {
@@ -13,11 +14,12 @@ export class InvestimentosService {
     @InjectModel(Investimento.name) private investimentoModel: Model<InvestimentoDocument>,
     @InjectModel(Dashboard.name) private dashboardModel: Model<DashboardDocument>,
     @InjectModel(Banco.name) private bancoModel: Model<BancoDocument>,
-    @InjectModel(Usuario.name) private usuarioModel: Model<UsuarioDocument>
+    @InjectModel(Usuario.name) private usuarioModel: Model<UsuarioDocument>,
+    private calculoService: CalculoInvestimentoService
   ) { }
 
   async create(createInvestimentoDto: CreateInvestimentoDto) {
-    const { usuario_id, banco_id, valor_investimento, data_inicio, data_fim } = createInvestimentoDto;
+    const { usuario_id, banco_id, valor_investimento, data_inicio, data_fim, tipo_investimento, caracteristicas } = createInvestimentoDto;
 
     const novoInvestimento = new this.investimentoModel(createInvestimentoDto);
     await novoInvestimento.save();
@@ -34,29 +36,13 @@ export class InvestimentosService {
       (new Date(data_fim).getTime() - new Date(data_inicio).getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    // Cálculo com juros compostos
-    const cdi = banco.cdi / 100;
-    const taxaDiaria = Math.pow(1 + cdi, 1 / 365) - 1;
-    const rendimentoBruto = valor_investimento * Math.pow(1 + taxaDiaria, diasCorridos);
-
-    // Cálculo do IOF regressivo (máximo de 96% até 0% em 30 dias)
-    let taxaIOF = 0;
-    if (diasCorridos <= 30) {
-      taxaIOF = (30 - diasCorridos) * 0.0033; // 0.33% por dia restante
-    }
-
-    // Cálculo de impostos
-    const impostoRenda = this.calcularImpostoRenda(banco, diasCorridos);
-    const lucro = rendimentoBruto - valor_investimento;
-    const valorIOF = lucro * taxaIOF;
-    const valorImpostoRenda = (lucro - valorIOF) * impostoRenda;
-    const valorLiquido = rendimentoBruto - valorIOF - valorImpostoRenda;
-
-    const percentualRendimento = ((valorLiquido - valor_investimento) / valor_investimento) * 100;
-
-    // Projeção do valor estimado para o final do período
-    const diasRestantes = Math.max(0, diasCorridos - Math.floor((new Date().getTime() - new Date(data_inicio).getTime()) / (1000 * 60 * 60 * 24)));
-    const valorEstimado = valor_investimento * Math.pow(1 + taxaDiaria, diasRestantes);
+    const resultado = this.calculoService.calcularRendimento(
+      tipo_investimento,
+      caracteristicas,
+      valor_investimento,
+      diasCorridos,
+      banco.cdi
+    );
 
     // Criar dashboard
     const novoDashboard = new this.dashboardModel({
@@ -65,29 +51,44 @@ export class InvestimentosService {
       banco_id,
       nome_banco: banco.nome_banco,
       investimento_id: novoInvestimento._id,
-      valor_bruto: parseFloat(rendimentoBruto.toFixed(2)),
-      valor_liquido: parseFloat(valorLiquido.toFixed(2)),
+      tipo_investimento,
+      valor_investido: valor_investimento,
+      data_inicio,
+      data_fim,
       dias_corridos: diasCorridos,
-      imposto_renda: parseFloat(valorImpostoRenda.toFixed(2)),
-      IOF: parseFloat(valorIOF.toFixed(2)),
-      percentual_rendimento: parseFloat(percentualRendimento.toFixed(2)),
-      valor_estimado: parseFloat(valorEstimado.toFixed(2))
+      rendimento: {
+        valor_bruto: parseFloat(resultado.rendimentoBruto.toFixed(2)),
+        valor_liquido: parseFloat(resultado.valorLiquido.toFixed(2)),
+        rentabilidade_periodo: parseFloat(resultado.percentualRendimento.toFixed(2)),
+        rentabilidade_anualizada: parseFloat((resultado.percentualRendimento * 365 / diasCorridos).toFixed(2)),
+        imposto_renda: parseFloat(resultado.valorImpostoRenda.toFixed(2)),
+        iof: parseFloat(resultado.valorIOF.toFixed(2)),
+        outras_taxas: 0
+      },
+      valor_atual: valor_investimento,
+      valor_projetado: parseFloat(resultado.valorEstimado.toFixed(2)),
+      indicadores_mercado: {
+        selic: banco.cdi,
+        cdi: banco.cdi,
+        ipca: 4.5 // Valor padrão, pode ser atualizado depois
+      },
+      investimentos: [{
+        valor: valor_investimento,
+        rendimento: parseFloat(resultado.percentualRendimento.toFixed(2)),
+        risco: caracteristicas.risco,
+        tipo: tipo_investimento,
+        banco: banco.nome_banco,
+        liquidez: caracteristicas.liquidez
+      }]
     });
 
     await novoDashboard.save();
 
     return {
       message: 'Investimento criado e dashboard atualizado com sucesso',
-      novoInvestimento,
-      novoDashboard
+      investimento: novoInvestimento,
+      dashboard: novoDashboard
     };
-  }
-
-  private calcularImpostoRenda(banco: Banco, diasCorridos: number): number {
-    if (diasCorridos <= 180) return banco.IR_ate_180_dias / 100;
-    if (diasCorridos <= 360) return banco.IR_ate_360_dias / 100;
-    if (diasCorridos <= 720) return banco.IR_ate_720_dias / 100;
-    return banco.IR_acima_720_dias / 100;
   }
 
   async findOne(id: string): Promise<Investimento> {
@@ -98,11 +99,15 @@ export class InvestimentosService {
     return investimento;
   }
 
-  async remove(id: string): Promise<{ message: string }> {
-    const investimento = await this.investimentoModel.findByIdAndDelete(id);
+  async remove(id: string) {
+    const investimento = await this.investimentoModel.findById(id);
     if (!investimento) {
       throw new NotFoundException('Investimento não encontrado');
     }
-    return { message: 'Investimento deletado com sucesso' };
+    
+    // Remover dashboard associado
+    await this.dashboardModel.deleteOne({ investimento_id: id });
+    
+    return this.investimentoModel.findByIdAndDelete(id);
   }
 } 
