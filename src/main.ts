@@ -4,20 +4,23 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
-
+ 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
+ 
   // Configuração do CORS
-  app.enableCors();
-
+  app.enableCors({
+    origin: 'http://localhost:3000',
+    credentials: true,
+  });
+ 
   // Configuração de validação global
   app.useGlobalPipes(new ValidationPipe({
     transform: true,
     whitelist: true,
     forbidNonWhitelisted: true,
   }));
-
+ 
   // Configuração do Swagger
   const config = new DocumentBuilder()
     .setTitle('Renix API')
@@ -27,16 +30,18 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
-
+ 
   // Prefixo global para todas as rotas
   app.setGlobalPrefix('api');
-
+ 
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
-
+ 
   // Forçando a porta 3333
   const port = 3333;
   await app.listen(port);
   console.log(`Aplicação rodando na porta ${port}`);
 }
 bootstrap();
+ 
+ 

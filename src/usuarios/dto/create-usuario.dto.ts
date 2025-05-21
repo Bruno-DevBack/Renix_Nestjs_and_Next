@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, MaxLength, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUsuarioDto {
@@ -19,6 +19,8 @@ export class CreateUsuarioDto {
 
   @ApiProperty({ example: '(11) 98765-4321', description: 'Telefone do usuário' })
   @IsString()
-  @IsOptional()
-  telefone_usuario?: string;
+  @Matches(/^\(\d{2}\)\s\d{4,5}-\d{4}$/, {
+    message: 'O telefone deve estar no formato (XX) XXXXX-XXXX ou (XX) XXXX-XXXX'
+  })
+  telefone_usuario: string;
 } 
