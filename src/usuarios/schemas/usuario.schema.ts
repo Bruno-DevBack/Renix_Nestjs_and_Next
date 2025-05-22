@@ -2,7 +2,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 
-export type UsuarioDocument = Usuario & Document;
+export type UsuarioDocument = Usuario & Document & {
+  matchPassword(enteredPassword: string): Promise<boolean>;
+};
 
 export interface InvestimentoHistorico {
   data: Date;
@@ -24,7 +26,7 @@ export class Usuario {
   @Prop({ required: true })
   nome_usuario: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, type: String })
   email_usuario: string;
 
   @Prop({ required: true })
@@ -44,7 +46,9 @@ export class Usuario {
 
   @Prop({ default: null, unique: false })
   cpf_usuario: string;
-  
+
+  @Prop({ type: String, default: null })
+  fotoPerfilBase64: string | null;
 
   @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'Dashboard' }] })
   dashboards: MongooseSchema.Types.ObjectId[];

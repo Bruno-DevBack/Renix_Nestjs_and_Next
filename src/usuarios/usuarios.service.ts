@@ -2,15 +2,15 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  UnauthorizedException
+  UnauthorizedException,
+  BadRequestException
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, isValidObjectId } from 'mongoose';
 import { Usuario, UsuarioDocument, InvestimentoHistorico, DashboardHistorico } from './schemas/usuario.schema';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { LoginUsuarioDto } from './dto/login-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
-import * as bcrypt from 'bcryptjs'; // Utilizando bcryptjs para hash de senhas
 
 /**
  * Serviço responsável por toda a lógica de negócio relacionada aos usuários
@@ -66,26 +66,29 @@ export class UsuariosService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    // Logar as senhas para verificar
-    console.log("Senha fornecida: ", loginUsuarioDto.senha_usuario);
-    console.log("Senha armazenada (hash): ", usuario.senha_usuario);
-
-    const senhaCorreta = await bcrypt.compare(loginUsuarioDto.senha_usuario, usuario.senha_usuario);
+    const senhaCorreta = await usuario.matchPassword(loginUsuarioDto.senha_usuario);
     if (!senhaCorreta) {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
+    const dadosUsuario: any = {
+      id: usuario._id,
+      nome_usuario: usuario.nome_usuario,
+      email_usuario: usuario.email_usuario,
+      eAdmin: usuario.eAdmin,
+      ePremium: usuario.ePremium,
+      dashboards: usuario.dashboards,
+      historico_investimentos: usuario.historico_investimentos,
+      historico_dashboards: usuario.historico_dashboards
+    };
+
+    // Inclui a foto apenas se ela existir
+    if (usuario.fotoPerfilBase64) {
+      dadosUsuario.fotoPerfilBase64 = usuario.fotoPerfilBase64;
+    }
+
     return {
-      usuario: {
-        id: usuario._id,
-        nome_usuario: usuario.nome_usuario,
-        email_usuario: usuario.email_usuario,
-        eAdmin: usuario.eAdmin,
-        ePremium: usuario.ePremium,
-        dashboards: usuario.dashboards,
-        historico_investimentos: usuario.historico_investimentos,
-        historico_dashboards: usuario.historico_dashboards
-      }
+      usuario: dadosUsuario
     };
   }
 
@@ -96,6 +99,10 @@ export class UsuariosService {
    * @throws NotFoundException - Se o usuário não for encontrado
    */
   async findOne(id: string): Promise<UsuarioDocument> {
+    if (!id || !isValidObjectId(id)) {
+      throw new BadRequestException('ID de usuário inválido');
+    }
+
     const usuario = await this.usuarioModel.findById(id).populate('dashboards');
     if (!usuario) {
       throw new NotFoundException('Usuário não encontrado');
@@ -154,29 +161,120 @@ export class UsuariosService {
    * @throws ConflictException - Se o novo email já estiver em uso
    */
   async atualizarUsuario(id: string, updateUsuarioDto: UpdateUsuarioDto): Promise<UsuarioDocument> {
-    // Verificar se o email já está em uso por outro usuário
-    const emailExistente = await this.usuarioModel.findOne({
-      email_usuario: updateUsuarioDto.email_usuario,
-      _id: { $ne: id }
-    });
-
-    if (emailExistente) {
-      throw new ConflictException('Email já está em uso por outro usuário');
+    if (!id || !isValidObjectId(id)) {
+      throw new BadRequestException('ID de usuário inválido');
     }
 
-    const usuarioAtualizado = await this.usuarioModel.findByIdAndUpdate(
-      id,
-      {
-        nome_usuario: updateUsuarioDto.nome_usuario,
-        email_usuario: updateUsuarioDto.email_usuario
-      },
-      { new: true }
-    );
-
-    if (!usuarioAtualizado) {
+    // Verificar se o usuário existe
+    const usuarioExistente = await this.findOne(id);
+    if (!usuarioExistente) {
       throw new NotFoundException('Usuário não encontrado');
     }
 
+    // Verificar se o email já está em uso por outro usuário
+    if (updateUsuarioDto.email_usuario !== usuarioExistente.email_usuario) {
+      const emailEmUso = await this.usuarioModel.findOne({
+        email_usuario: updateUsuarioDto.email_usuario,
+        _id: { $ne: id }
+      });
+
+      if (emailEmUso) {
+        throw new ConflictException('Email já está em uso por outro usuário');
+      }
+    }
+
+    // Atualizar os dados
+    usuarioExistente.nome_usuario = updateUsuarioDto.nome_usuario;
+    usuarioExistente.email_usuario = updateUsuarioDto.email_usuario;
+
+    // Salvar e retornar com os dados populados
+    await usuarioExistente.save();
+
+    // Buscar novamente para retornar com os relacionamentos populados
+    const usuarioAtualizado = await this.usuarioModel.findById(id).populate('dashboards');
+    if (!usuarioAtualizado) {
+      throw new NotFoundException('Erro ao buscar usuário atualizado');
+    }
+
     return usuarioAtualizado;
+  }
+
+  /**
+   * Faz upload da foto de perfil do usuário
+   * @param id - ID do usuário
+   * @param file - Arquivo de imagem
+   * @returns Usuário atualizado
+   * @throws NotFoundException - Se o usuário não for encontrado
+   */
+  async uploadFotoPerfil(id: string, file: Express.Multer.File): Promise<UsuarioDocument> {
+    if (!id || !isValidObjectId(id)) {
+      throw new BadRequestException('ID de usuário inválido');
+    }
+
+    const usuario = await this.findOne(id);
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    // Converter o buffer da imagem para base64
+    const base64Image = file.buffer.toString('base64');
+    usuario.fotoPerfilBase64 = `data:${file.mimetype};base64,${base64Image}`;
+    return usuario.save();
+  }
+
+  /**
+   * Remove a foto de perfil do usuário
+   * @param id - ID do usuário
+   * @returns Usuário atualizado
+   * @throws NotFoundException - Se o usuário não for encontrado
+   */
+  async deleteFotoPerfil(id: string): Promise<UsuarioDocument> {
+    if (!id || !isValidObjectId(id)) {
+      throw new BadRequestException('ID de usuário inválido');
+    }
+
+    const usuario = await this.findOne(id);
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    usuario.fotoPerfilBase64 = null;
+    return usuario.save();
+  }
+
+  /**
+   * Edita a foto de perfil do usuário
+   * @param id - ID do usuário
+   * @param file - Nova imagem de perfil
+   * @returns Usuário atualizado
+   * @throws NotFoundException - Se o usuário não for encontrado
+   */
+  async editFotoPerfil(id: string, file: Express.Multer.File): Promise<UsuarioDocument> {
+    if (!id || !isValidObjectId(id)) {
+      throw new BadRequestException('ID de usuário inválido');
+    }
+
+    const usuario = await this.findOne(id);
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    // Converter o buffer da imagem para base64
+    const base64Image = file.buffer.toString('base64');
+    usuario.fotoPerfilBase64 = `data:${file.mimetype};base64,${base64Image}`;
+    return usuario.save();
+  }
+
+  /**
+   * Registra o logout do usuário
+   * @param id - ID do usuário
+   */
+  async registrarLogout(id: string): Promise<void> {
+    const usuario = await this.findOne(id);
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+    // Aqui você pode adicionar lógica adicional se necessário
+    // Por exemplo, registrar data/hora do logout, limpar sessões, etc.
   }
 }
