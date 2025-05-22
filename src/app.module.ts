@@ -7,6 +7,7 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { InvestimentosModule } from './investimentos/investimentos.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { BancoAgentModule } from './banco-agent/banco-agent.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { BancoAgentModule } from './banco-agent/banco-agent.module';
       }),
       inject: [ConfigService],
     }),
+    AuthModule,
     BancosModule,
     UsuariosModule,
     InvestimentosModule,

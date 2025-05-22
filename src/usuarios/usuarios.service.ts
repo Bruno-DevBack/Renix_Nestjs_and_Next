@@ -11,6 +11,7 @@ import { Usuario, UsuarioDocument, InvestimentoHistorico, DashboardHistorico } f
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { LoginUsuarioDto } from './dto/login-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import { JwtService } from '@nestjs/jwt';
 
 /**
  * Serviço responsável por toda a lógica de negócio relacionada aos usuários
@@ -19,7 +20,8 @@ import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 @Injectable()
 export class UsuariosService {
   constructor(
-    @InjectModel(Usuario.name) private usuarioModel: Model<UsuarioDocument>
+    @InjectModel(Usuario.name) private usuarioModel: Model<UsuarioDocument>,
+    private jwtService: JwtService
   ) { }
 
   /**
@@ -71,6 +73,8 @@ export class UsuariosService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
+    const token = this.jwtService.sign({ sub: usuario._id });
+
     const dadosUsuario: any = {
       id: usuario._id,
       nome_usuario: usuario.nome_usuario,
@@ -79,10 +83,10 @@ export class UsuariosService {
       ePremium: usuario.ePremium,
       dashboards: usuario.dashboards,
       historico_investimentos: usuario.historico_investimentos,
-      historico_dashboards: usuario.historico_dashboards
+      historico_dashboards: usuario.historico_dashboards,
+      access_token: token
     };
 
-    // Inclui a foto apenas se ela existir
     if (usuario.fotoPerfilBase64) {
       dadosUsuario.fotoPerfilBase64 = usuario.fotoPerfilBase64;
     }
