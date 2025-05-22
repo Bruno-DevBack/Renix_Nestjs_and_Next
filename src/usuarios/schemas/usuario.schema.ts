@@ -42,8 +42,9 @@ export class Usuario {
   @Prop({ default: null })
   cnpj_usuario: string;
 
-  @Prop({ default: null, unique: true })
+  @Prop({ default: null, unique: false })
   cpf_usuario: string;
+  
 
   @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'Dashboard' }] })
   dashboards: MongooseSchema.Types.ObjectId[];
