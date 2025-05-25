@@ -1,3 +1,14 @@
+/**
+ * Serviço responsável por toda a lógica de negócio relacionada aos usuários
+ * 
+ * Este serviço gerencia:
+ * - Criação e autenticação de usuários
+ * - Atualização de perfis
+ * - Histórico de investimentos
+ * - Dashboards personalizados
+ * - Permissões e níveis de acesso
+ */
+
 import {
   Injectable,
   NotFoundException,
@@ -26,9 +37,10 @@ export class UsuariosService {
 
   /**
    * Cria um novo usuário no sistema
-   * @param createUsuarioDto - Dados do usuário a ser criado
-   * @returns Mensagem de sucesso
+   * 
+   * @param createUsuarioDto - Dados do novo usuário
    * @throws ConflictException - Se o email já estiver cadastrado
+   * @returns Mensagem de sucesso
    */
   async create(createUsuarioDto: CreateUsuarioDto): Promise<{ message: string }> {
     // Verificar se o email já está cadastrado
@@ -54,10 +66,11 @@ export class UsuariosService {
   }
 
   /**
-   * Realiza o login do usuário no sistema
+   * Realiza o login do usuário e gera um token JWT
+   * 
    * @param loginUsuarioDto - Credenciais do usuário
-   * @returns Dados do usuário autenticado
    * @throws UnauthorizedException - Se as credenciais forem inválidas
+   * @returns Dados do usuário e token de autenticação
    */
   async login(loginUsuarioDto: LoginUsuarioDto) {
     const usuario = await this.usuarioModel.findOne({
@@ -73,8 +86,21 @@ export class UsuariosService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    const token = this.jwtService.sign({ sub: usuario._id });
+    // Gera o token JWT com informações do usuário
+    const jwt = this.jwtService.sign(
+      {
+        sub: usuario._id,
+        email: usuario.email_usuario,
+        isAdmin: usuario.eAdmin,
+        nome: usuario.nome_usuario
+      },
+      {
+        expiresIn: '24h',
+        secret: process.env.JWT_SECRET || 'sua_chave_secreta'
+      }
+    );
 
+    // Prepara os dados do usuário para retorno
     const dadosUsuario: any = {
       id: usuario._id,
       nome_usuario: usuario.nome_usuario,
@@ -83,16 +109,22 @@ export class UsuariosService {
       ePremium: usuario.ePremium,
       dashboards: usuario.dashboards,
       historico_investimentos: usuario.historico_investimentos,
-      historico_dashboards: usuario.historico_dashboards,
-      access_token: token
+      historico_dashboards: usuario.historico_dashboards
     };
 
     if (usuario.fotoPerfilBase64) {
       dadosUsuario.fotoPerfilBase64 = usuario.fotoPerfilBase64;
     }
 
+    // Retorna no formato esperado pelo TransformInterceptor
     return {
-      usuario: dadosUsuario
+      usuario: dadosUsuario,
+      auth: {
+        token: jwt,
+        tipo: 'Bearer',
+        expira_em: '24 horas',
+        gerado_em: new Date().toISOString()
+      }
     };
   }
 
@@ -157,26 +189,26 @@ export class UsuariosService {
   }
 
   /**
-   * Atualiza o nome e email de um usuário
+   * Atualiza parcialmente os dados do usuário (nome e/ou email)
    * @param id - ID do usuário
-   * @param updateUsuarioDto - Novos dados do usuário
+   * @param updateUsuarioDto - Dados do usuário a serem atualizados
    * @returns Usuário atualizado
    * @throws NotFoundException - Se o usuário não for encontrado
    * @throws ConflictException - Se o novo email já estiver em uso
+   * @throws BadRequestException - Se o ID for inválido
    */
   async atualizarUsuario(id: string, updateUsuarioDto: UpdateUsuarioDto): Promise<UsuarioDocument> {
     if (!id || !isValidObjectId(id)) {
       throw new BadRequestException('ID de usuário inválido');
     }
 
-    // Verificar se o usuário existe
-    const usuarioExistente = await this.findOne(id);
-    if (!usuarioExistente) {
+    const usuario = await this.usuarioModel.findById(id);
+    if (!usuario) {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    // Verificar se o email já está em uso por outro usuário
-    if (updateUsuarioDto.email_usuario !== usuarioExistente.email_usuario) {
+    // Verificar se o novo email já está em uso por outro usuário
+    if (updateUsuarioDto.email_usuario && updateUsuarioDto.email_usuario !== usuario.email_usuario) {
       const emailEmUso = await this.usuarioModel.findOne({
         email_usuario: updateUsuarioDto.email_usuario,
         _id: { $ne: id }
@@ -187,19 +219,20 @@ export class UsuariosService {
       }
     }
 
-    // Atualizar os dados
-    usuarioExistente.nome_usuario = updateUsuarioDto.nome_usuario;
-    usuarioExistente.email_usuario = updateUsuarioDto.email_usuario;
-
-    // Salvar e retornar com os dados populados
-    await usuarioExistente.save();
-
-    // Buscar novamente para retornar com os relacionamentos populados
-    const usuarioAtualizado = await this.usuarioModel.findById(id).populate('dashboards');
-    if (!usuarioAtualizado) {
-      throw new NotFoundException('Erro ao buscar usuário atualizado');
+    // Atualizar apenas os campos fornecidos
+    if (updateUsuarioDto.nome_usuario) {
+      usuario.nome_usuario = updateUsuarioDto.nome_usuario;
+    }
+    if (updateUsuarioDto.email_usuario) {
+      usuario.email_usuario = updateUsuarioDto.email_usuario;
     }
 
+    // Salvar e retornar com os dados populados
+    await usuario.save();
+    const usuarioAtualizado = await this.usuarioModel.findById(id).populate('dashboards');
+    if (!usuarioAtualizado) {
+      throw new NotFoundException('Usuário não encontrado após atualização');
+    }
     return usuarioAtualizado;
   }
 
@@ -242,7 +275,7 @@ export class UsuariosService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    usuario.fotoPerfilBase64 = null;
+    usuario.fotoPerfilBase64 = undefined;
     return usuario.save();
   }
 
@@ -270,8 +303,10 @@ export class UsuariosService {
   }
 
   /**
-   * Registra o logout do usuário
+   * Registra o logout do usuário e limpa suas sessões
+   * 
    * @param id - ID do usuário
+   * @throws NotFoundException - Se o usuário não for encontrado
    */
   async registrarLogout(id: string): Promise<void> {
     const usuario = await this.findOne(id);

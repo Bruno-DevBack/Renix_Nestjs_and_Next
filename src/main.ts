@@ -1,3 +1,15 @@
+/**
+ * Arquivo principal da aplicação NestJS
+ * Responsável pela configuração inicial e bootstrap da aplicação
+ * 
+ * Este arquivo configura:
+ * - CORS para comunicação com o frontend
+ * - Validação global de dados
+ * - Documentação Swagger
+ * - Interceptors e filtros globais
+ * - Prefixo global para todas as rotas
+ */
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -6,15 +18,28 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
+  // Cria a instância da aplicação NestJS
   const app = await NestFactory.create(AppModule);
 
-  // Configuração do CORS
+  /**
+   * Configuração do CORS para permitir requisições do frontend
+   * Em ambiente de desenvolvimento, aceita requisições de qualquer origem
+   * Em produção, isso deve ser restrito aos domínios permitidos
+   */
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: true, // Permite todas as origens em desenvolvimento
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Authorization'],
   });
 
-  // Configuração de validação global
+  /**
+   * Configuração da validação global usando class-validator
+   * - transform: converte automaticamente os dados para os tipos corretos
+   * - whitelist: remove propriedades não decoradas com validadores
+   * - forbidNonWhitelisted: lança erro se houver propriedades não permitidas
+   */
   app.useGlobalPipes(new ValidationPipe({
     transform: true,
     whitelist: true,
@@ -127,16 +152,21 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  // Prefixo global para todas as rotas
+  /**
+   * Configuração global da aplicação
+   * - Prefixo 'api' em todas as rotas
+   * - Filtro global para tratamento de exceções HTTP
+   * - Interceptor para transformação padronizada das respostas
+   */
   app.setGlobalPrefix('api');
-
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
 
-  // Forçando a porta 3333
+  // Inicia o servidor na porta 3333
   const port = 3333;
   await app.listen(port);
   console.log(`Aplicação rodando na porta ${port}`);
 }
+
 bootstrap();
 

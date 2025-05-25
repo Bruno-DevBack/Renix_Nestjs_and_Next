@@ -38,10 +38,17 @@ export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> 
    */
   intercept(context: ExecutionContext, next: CallHandler): Observable<Response<T>> {
     return next.handle().pipe(
-      map(data => ({
-        data,
-        timestamp: new Date().toISOString(),
-      })),
+      map(data => {
+        // Se a resposta já estiver no formato correto, não transforma novamente
+        if (data && data.data && data.timestamp) {
+          return data;
+        }
+        // Caso contrário, aplica a transformação
+        return {
+          data,
+          timestamp: new Date().toISOString(),
+        };
+      }),
     );
   }
 } 
