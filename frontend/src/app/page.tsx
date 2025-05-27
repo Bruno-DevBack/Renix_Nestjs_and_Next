@@ -13,6 +13,7 @@ import {
   Cog6ToothIcon,
   PhoneIcon
 } from '@heroicons/react/24/outline'
+import { AuthGuard } from '@/components/AuthGuard'
 
 const navigation = [
   { name: 'Sobre', href: '#', current: false },
@@ -20,7 +21,7 @@ const navigation = [
   { name: 'Contato', href: '#', current: false }
 ]
 
-export default function Page() {
+export default function Home() {
   const [isOpen, setIsOpen] = useState(false)
 
   // Fecha o menu se redimensionar para largura >= 640px
@@ -36,7 +37,7 @@ export default function Page() {
   }, [])
 
   return (
-    <>
+    <AuthGuard>
       {/* Navbar */}
       <Disclosure
         as="nav"
@@ -221,7 +222,6 @@ export default function Page() {
           </div>
         </div>
       </footer>
-
-    </>
+    </AuthGuard>
   )
 }

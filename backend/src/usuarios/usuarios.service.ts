@@ -22,7 +22,19 @@ import { Usuario, UsuarioDocument, InvestimentoHistorico, DashboardHistorico } f
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { LoginUsuarioDto } from './dto/login-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
-import { JwtService } from '@nestjs/jwt';
+import { AuthService } from '../auth/auth.service';
+
+export interface DadosUsuarioResponse {
+  id: string;
+  nome_usuario: string;
+  email_usuario: string;
+  eAdmin: boolean;
+  ePremium: boolean;
+  dashboards: any[];
+  historico_investimentos: InvestimentoHistorico[];
+  historico_dashboards: DashboardHistorico[];
+  fotoPerfilBase64?: string;
+}
 
 /**
  * Serviço responsável por toda a lógica de negócio relacionada aos usuários
@@ -32,7 +44,7 @@ import { JwtService } from '@nestjs/jwt';
 export class UsuariosService {
   constructor(
     @InjectModel(Usuario.name) private usuarioModel: Model<UsuarioDocument>,
-    private jwtService: JwtService
+    private authService: AuthService
   ) { }
 
   /**
@@ -86,23 +98,17 @@ export class UsuariosService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    // Gera o token JWT com informações do usuário
-    const jwt = this.jwtService.sign(
-      {
-        sub: usuario._id,
-        email: usuario.email_usuario,
-        isAdmin: usuario.eAdmin,
-        nome: usuario.nome_usuario
-      },
-      {
-        expiresIn: '24h',
-        secret: process.env.JWT_SECRET || 'sua_chave_secreta'
-      }
+    // Gera o token usando o AuthService
+    const { access_token, expires_in } = await this.authService.generateToken(
+      usuario._id?.toString() || '',
+      usuario.email_usuario,
+      usuario.eAdmin,
+      usuario.nome_usuario
     );
 
     // Prepara os dados do usuário para retorno
-    const dadosUsuario: any = {
-      id: usuario._id,
+    const dadosUsuario: DadosUsuarioResponse = {
+      id: usuario._id?.toString() || '',
       nome_usuario: usuario.nome_usuario,
       email_usuario: usuario.email_usuario,
       eAdmin: usuario.eAdmin,
@@ -116,13 +122,12 @@ export class UsuariosService {
       dadosUsuario.fotoPerfilBase64 = usuario.fotoPerfilBase64;
     }
 
-    // Retorna no formato esperado pelo TransformInterceptor
     return {
       usuario: dadosUsuario,
       auth: {
-        token: jwt,
+        token: access_token,
         tipo: 'Bearer',
-        expira_em: '24 horas',
+        expira_em: expires_in,
         gerado_em: new Date().toISOString()
       }
     };
@@ -244,19 +249,55 @@ export class UsuariosService {
    * @throws NotFoundException - Se o usuário não for encontrado
    */
   async uploadFotoPerfil(id: string, file: Express.Multer.File): Promise<UsuarioDocument> {
+    console.log('Iniciando upload de foto para usuário:', id);
+    
     if (!id || !isValidObjectId(id)) {
+      console.error('ID de usuário inválido:', id);
       throw new BadRequestException('ID de usuário inválido');
     }
 
-    const usuario = await this.findOne(id);
-    if (!usuario) {
-      throw new NotFoundException('Usuário não encontrado');
+    if (!file || !file.buffer) {
+      throw new BadRequestException('Arquivo inválido ou vazio');
     }
 
-    // Converter o buffer da imagem para base64
-    const base64Image = file.buffer.toString('base64');
-    usuario.fotoPerfilBase64 = `data:${file.mimetype};base64,${base64Image}`;
-    return usuario.save();
+    // Validar tipo de arquivo
+    if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.mimetype)) {
+      throw new BadRequestException('Formato de arquivo inválido. Use apenas JPG ou PNG');
+    }
+
+    // Validar tamanho (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      throw new BadRequestException('Arquivo muito grande. Tamanho máximo: 5MB');
+    }
+
+    try {
+      const usuario = await this.usuarioModel.findById(id);
+      if (!usuario) {
+        console.error('Usuário não encontrado:', id);
+        throw new NotFoundException('Usuário não encontrado');
+      }
+
+      console.log('Processando arquivo:', {
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size
+      });
+
+      // Converter o buffer da imagem para base64
+      const base64Image = file.buffer.toString('base64');
+      usuario.fotoPerfilBase64 = `data:${file.mimetype};base64,${base64Image}`;
+      
+      const usuarioAtualizado = await usuario.save();
+      console.log('Foto atualizada com sucesso para usuário:', id);
+      
+      return usuarioAtualizado;
+    } catch (error) {
+      console.error('Erro ao processar upload de foto:', error);
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Erro ao processar upload da foto');
+    }
   }
 
   /**

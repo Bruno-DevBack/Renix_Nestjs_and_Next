@@ -2,11 +2,11 @@ import { Controller, Get, Param, Post, Delete, UseInterceptors, UploadedFile, Pa
 import { FileInterceptor } from '@nestjs/platform-express';
 import { BancosService } from './bancos.service';
 import { Banco } from './schemas/banco.schema';
-import { HistoricoResponse } from './bancos.service';
+import { HistoricoResponse, DadosBancoResponse, TipoInvestimento } from './bancos.service';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 
 @ApiTags('Bancos')
-@Controller('bancos')
+@Controller('api/bancos')
 export class BancosController {
   constructor(private readonly bancosService: BancosService) { }
 
@@ -14,6 +14,30 @@ export class BancosController {
   @ApiOperation({ summary: 'Listar todos os bancos' })
   async findAll(): Promise<Banco[]> {
     return this.bancosService.findAll();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Buscar banco por ID' })
+  async findById(@Param('id') id: string): Promise<Banco> {
+    return this.bancosService.findById(id);
+  }
+
+  @Get(':id/dados')
+  @ApiOperation({ summary: 'Buscar dados específicos do banco' })
+  async getDadosBanco(@Param('id') id: string): Promise<DadosBancoResponse> {
+    return this.bancosService.getDadosBanco(id);
+  }
+
+  @Get(':id/tipos-investimento')
+  @ApiOperation({ summary: 'Buscar tipos de investimento disponíveis no banco' })
+  async getTiposInvestimento(@Param('id') id: string): Promise<TipoInvestimento[]> {
+    return this.bancosService.getTiposInvestimento(id);
+  }
+
+  @Get(':id/investimentos')
+  @ApiOperation({ summary: 'Buscar investimentos disponíveis no banco' })
+  async getInvestimentosDisponiveis(@Param('id') id: string) {
+    return this.bancosService.getInvestimentosDisponiveis(id);
   }
 
   @Get(':id/historico')

@@ -15,7 +15,8 @@ import {
   ParseFilePipeBuilder,
   BadRequestException,
   Patch,
-  Request
+  Request,
+  NotFoundException
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody, ApiConsumes, ApiBearerAuth } from '@nestjs/swagger';
@@ -27,6 +28,7 @@ import { AdminGuard } from '../common/guards/admin.guard';
 import { InvestimentoHistorico, DashboardHistorico } from './schemas/usuario.schema';
 import { isValidObjectId } from 'mongoose';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { memoryStorage } from 'multer';
 
 /**
  * Controller responsável por gerenciar todas as operações relacionadas aos usuários
@@ -263,6 +265,20 @@ export class UsuariosController {
    * Endpoint para fazer upload da foto de perfil do usuário
    */
   @Post(':id/foto-perfil')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB
+      },
+      fileFilter: (req, file, cb) => {
+        if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
+          return cb(new BadRequestException('Apenas arquivos JPG e PNG são permitidos'), false);
+        }
+        cb(null, true);
+      },
+    })
+  )
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Fazer upload da foto de perfil' })
@@ -282,25 +298,43 @@ export class UsuariosController {
   @ApiResponse({ status: 200, description: 'Foto de perfil atualizada com sucesso' })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado' })
   @ApiResponse({ status: 400, description: 'ID de usuário inválido' })
-  @UseInterceptors(FileInterceptor('file'))
   async uploadFotoPerfil(
     @Param('id') id: string,
-    @UploadedFile(
-      new ParseFilePipeBuilder()
-        .addFileTypeValidator({
-          fileType: /(jpg|jpeg|png)$/,
-        })
-        .addMaxSizeValidator({
-          maxSize: 5 * 1024 * 1024 // 5MB
-        })
-        .build(),
-    ) file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req: any
   ) {
-    if (!id || !isValidObjectId(id)) {
-      throw new BadRequestException('ID de usuário inválido');
+    console.log('Recebendo upload de foto para usuário:', id);
+    console.log('Arquivo recebido:', {
+      originalname: file?.originalname,
+      mimetype: file?.mimetype,
+      size: file?.size,
+    });
+    console.log('Usuário autenticado:', req.user);
+
+    if (!file) {
+      throw new BadRequestException('Nenhum arquivo foi enviado');
     }
 
-    return this.usuariosService.uploadFotoPerfil(id, file);
+    try {
+      if (!id || !isValidObjectId(id)) {
+        throw new BadRequestException('ID de usuário inválido');
+      }
+
+      // Verifica se o usuário autenticado está tentando modificar seu próprio perfil
+      if (req.user.sub !== id) {
+        throw new UnauthorizedException('Você só pode modificar seu próprio perfil');
+      }
+
+      const result = await this.usuariosService.uploadFotoPerfil(id, file);
+      console.log('Foto atualizada com sucesso');
+      return result;
+    } catch (error) {
+      console.error('Erro ao processar upload:', error);
+      if (error instanceof NotFoundException || error instanceof UnauthorizedException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Erro ao processar upload da foto');
+    }
   }
 
   /**

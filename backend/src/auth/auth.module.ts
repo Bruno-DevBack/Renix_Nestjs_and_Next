@@ -8,7 +8,7 @@
  * - Integração com o módulo de usuários
  */
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -30,13 +30,17 @@ import { JwtAuthGuard } from './jwt-auth.guard';
                 secret: configService.get<string>('JWT_SECRET') || 'sua_chave_secreta',
                 signOptions: {
                     expiresIn: '24h', // Token expira em 24 horas
+                    algorithm: 'HS256'
                 },
+                verifyOptions: {
+                    algorithms: ['HS256']
+                }
             }),
             inject: [ConfigService],
         }),
 
         // Importa o módulo de usuários para acesso aos serviços de usuário
-        UsuariosModule,
+        forwardRef(() => UsuariosModule),
     ],
     providers: [
         AuthService,      // Serviço principal de autenticação
@@ -47,7 +51,8 @@ import { JwtAuthGuard } from './jwt-auth.guard';
         AuthService,      // Permite que outros módulos usem o serviço de autenticação
         JwtStrategy,      // Disponibiliza a estratégia JWT
         PassportModule,   // Disponibiliza funcionalidades do Passport
-        JwtAuthGuard     // Permite que outros módulos protejam suas rotas
+        JwtAuthGuard,     // Permite que outros módulos protejam suas rotas
+        JwtModule
     ],
 })
 export class AuthModule { } 

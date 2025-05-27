@@ -1,10 +1,13 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MulterModule } from '@nestjs/platform-express';
 import { UsuariosController } from './usuarios.controller';
 import { UsuariosService } from './usuarios.service';
 import { Usuario, UsuarioSchema } from './schemas/usuario.schema';
+import { memoryStorage } from 'multer';
+import { AuthModule } from '../auth/auth.module';
 
 /**
  * Módulo responsável por gerenciar todas as funcionalidades relacionadas aos usuários
@@ -20,6 +23,8 @@ import { Usuario, UsuarioSchema } from './schemas/usuario.schema';
   imports: [
     // Registra o modelo de Usuário no Mongoose
     MongooseModule.forFeature([{ name: Usuario.name, schema: UsuarioSchema }]),
+    
+    // Configuração do JWT
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -30,6 +35,16 @@ import { Usuario, UsuarioSchema } from './schemas/usuario.schema';
       }),
       inject: [ConfigService],
     }),
+
+    // Configuração do Multer para upload de arquivos
+    MulterModule.register({
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+      },
+    }),
+
+    forwardRef(() => AuthModule)
   ],
   controllers: [UsuariosController], // Controller que gerencia as rotas de usuários
   providers: [UsuariosService],      // Service que implementa a lógica de negócio

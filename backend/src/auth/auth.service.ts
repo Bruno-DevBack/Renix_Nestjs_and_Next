@@ -7,13 +7,14 @@
  * - Verifica a autenticidade dos usuários
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsuariosService } from '../usuarios/usuarios.service';
 
 @Injectable()
 export class AuthService {
     constructor(
+        @Inject(forwardRef(() => UsuariosService))
         private readonly usuariosService: UsuariosService,
         private readonly jwtService: JwtService,
     ) { }
@@ -26,18 +27,22 @@ export class AuthService {
      * @param isAdmin - Flag indicando se o usuário é administrador
      * @returns Objeto contendo o token de acesso e tempo de expiração
      */
-    async generateToken(userId: string, email: string, isAdmin: boolean) {
+    async generateToken(userId: string, email: string, isAdmin: boolean, nome: string) {
+        const now = Math.floor(Date.now() / 1000); // Converte para segundos
+        const expiresIn = 24 * 60 * 60; // 24 horas em segundos
+
         const payload = {
             sub: userId,
             email: email,
             isAdmin: isAdmin,
-            iat: Date.now(),
-            exp: Date.now() + (24 * 60 * 60 * 1000) // 24 horas em milissegundos
+            nome: nome,
+            iat: now,
+            exp: now + expiresIn
         };
 
         return {
             access_token: this.jwtService.sign(payload),
-            expires_in: 24 * 60 * 60 * 1000 // 24 horas em milissegundos
+            expires_in: expiresIn * 1000 // Retorna em milissegundos para o frontend
         };
     }
 
@@ -60,6 +65,13 @@ export class AuthService {
     async validateToken(token: string) {
         try {
             const payload = this.jwtService.verify(token);
+
+            // Verifica se o token expirou
+            const now = Math.floor(Date.now() / 1000);
+            if (payload.exp && payload.exp < now) {
+                return null;
+            }
+
             return payload;
         } catch (error) {
             return null;

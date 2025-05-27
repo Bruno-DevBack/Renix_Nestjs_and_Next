@@ -118,4 +118,16 @@ export class InvestimentosService {
     
     return this.investimentoModel.findByIdAndDelete(id);
   }
+
+  async findAll(usuarioId: string): Promise<Investimento[]> {
+    console.log('Buscando investimentos para o usuário:', usuarioId);
+    try {
+      const investimentos = await this.investimentoModel.find({ usuario_id: usuarioId });
+      console.log(`Encontrados ${investimentos.length} investimentos`);
+      return investimentos;
+    } catch (error) {
+      console.error('Erro ao buscar investimentos:', error);
+      throw error;
+    }
+  }
 } 

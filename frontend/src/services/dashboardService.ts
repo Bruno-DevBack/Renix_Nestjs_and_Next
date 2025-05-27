@@ -1,24 +1,52 @@
 import api from '@/lib/api';
 import { Dashboard, DashboardHistorico } from '@/types';
 
+interface ApiResponse<T> {
+    data: T;
+    timestamp: string;
+}
+
 class DashboardService {
     private readonly baseUrl = '/dashboard';
 
     public async listarTodos(): Promise<Dashboard[]> {
-        const response = await api.get<Dashboard[]>(this.baseUrl);
-        return response.data;
+        try {
+            const response = await api.get<ApiResponse<Dashboard[]>>('/dashboard');
+            if (response.data && 'data' in response.data && Array.isArray(response.data.data)) {
+                return response.data.data;
+            }
+            console.error('Formato de resposta inválido:', response.data);
+            return [];
+        } catch (error) {
+            console.error('Erro ao buscar dashboards:', error);
+            return [];
+        }
     }
 
-    public async buscarPorId(id: string): Promise<Dashboard> {
-        const response = await api.get<Dashboard>(`${this.baseUrl}/${id}`);
-        return response.data;
+    public async buscarPorId(id: string): Promise<Dashboard | null> {
+        try {
+            const response = await api.get<ApiResponse<Dashboard>>(`${this.baseUrl}/${id}`);
+            if (response.data && 'data' in response.data) {
+                return response.data.data;
+            }
+            console.error('Formato de resposta inválido:', response.data);
+            return null;
+        } catch (error) {
+            console.error('Erro ao buscar dashboard:', error);
+            return null;
+        }
     }
 
     public async gerarPDF(id: string): Promise<Blob> {
-        const response = await api.get(`${this.baseUrl}/${id}/pdf`, {
-            responseType: 'blob'
-        });
-        return response.data;
+        try {
+            const response = await api.get(`${this.baseUrl}/${id}/pdf`, {
+                responseType: 'blob'
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error);
+            throw error;
+        }
     }
 
     public async salvarHistorico(dashboardHistorico: DashboardHistorico): Promise<void> {

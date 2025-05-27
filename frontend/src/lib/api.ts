@@ -1,9 +1,10 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://localhost:3333/api', // URL base da API NestJS (com prefixo /api)
+    baseURL: 'http://localhost:3333', // URL base da API NestJS (sem prefixo /api)
     headers: {
-        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
     },
 });
 
@@ -12,44 +13,56 @@ api.interceptors.request.use((config) => {
     if (typeof window === 'undefined') return config;
 
     const token = localStorage.getItem('@RenixApp:token');
+    
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        // Garante que o Content-Type está definido corretamente
+        if (!(config.data instanceof FormData)) {
+            config.headers['Content-Type'] = 'application/json';
+        }
+        console.log('Token nas headers:', config.headers.Authorization);
+    } else {
+        console.log('Nenhum token encontrado no localStorage');
     }
+
+    // Remove Content-Type para FormData
+    if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+    }
+
     return config;
+}, (error) => {
+    console.error('Erro no interceptor de requisição:', error);
+    return Promise.reject(error);
 });
 
 // Interceptor para tratar erros de resposta
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        // Se não houver resposta do servidor, propaga o erro
         if (!error.response) {
-            return Promise.reject(error);
+            console.error('Erro sem resposta do servidor:', error);
+            return Promise.reject(new Error('Erro de conexão com o servidor'));
         }
 
-        const { status } = error.response;
+        const { status, config } = error.response;
+        console.error('Erro na requisição:', {
+            status,
+            url: config.url,
+            method: config.method,
+            headers: config.headers,
+            error: error.response.data
+        });
 
-        // Tratamento específico para erro 401 (não autorizado)
+        // Se o token estiver inválido ou expirado
         if (status === 401) {
-            localStorage.removeItem('@RenixApp:token');
-            localStorage.removeItem('@RenixApp:user');
-
-            // Redireciona para login apenas se não estiver em uma rota pública
-            const publicRoutes = ['/login', '/registro', '/cadastro', '/'];
-            if (typeof window !== 'undefined' &&
-                !publicRoutes.some(route => window.location.pathname.startsWith(route))) {
-                window.location.href = '/login';
-            }
-        }
-
-        // Para erros 409 (conflito) e 400 (bad request), não logamos o erro
-        if (status === 409 || status === 400) {
+            console.error('Erro de autenticação 401:', error.response.data);
             return Promise.reject(error);
         }
 
-        // Para outros erros, logamos apenas em ambiente de desenvolvimento
-        if (process.env.NODE_ENV === 'development') {
-            console.error('API Error:', error.response.data);
+        // Para erros específicos, retorna a mensagem do servidor
+        if ([400, 409, 422].includes(status)) {
+            return Promise.reject(new Error(error.response.data.message || 'Erro na operação'));
         }
 
         return Promise.reject(error);

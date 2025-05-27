@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsDateString, IsEnum, ValidateNested, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsDateString, IsEnum, ValidateNested, IsOptional, IsString, IsMongoId } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Types } from 'mongoose';
 import { TipoInvestimento, CaracteristicasInvestimento } from '../schemas/investimento.schema';
@@ -101,56 +101,67 @@ export class CaracteristicasInvestimentoDto implements CaracteristicasInvestimen
 
 export class CreateInvestimentoDto {
   @ApiProperty({
-    example: '507f1f77bcf86cd799439011',
-    description: 'ID do usuário no MongoDB'
+    example: 'CDB Banco X',
+    description: 'Título do investimento'
   })
   @IsNotEmpty()
-  usuario_id: Types.ObjectId;
-
-  @ApiProperty({
-    example: '507f1f77bcf86cd799439012',
-    description: 'ID do banco no MongoDB'
-  })
-  @IsNotEmpty()
-  banco_id: Types.ObjectId;
+  @IsString()
+  titulo: string;
 
   @ApiProperty({
     example: 10000,
-    description: 'Valor inicial do investimento'
+    description: 'Valor do investimento'
   })
   @IsNumber()
   @IsNotEmpty()
   valor_investimento: number;
 
   @ApiProperty({
-    example: '2024-03-15',
+    example: '507f1f77bcf86cd799439011',
+    description: 'ID do banco'
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  banco_id: Types.ObjectId;
+
+  @ApiProperty({
+    example: '507f1f77bcf86cd799439012',
+    description: 'ID do usuário'
+  })
+  @IsMongoId()
+  @IsOptional()
+  usuario_id?: Types.ObjectId;
+
+  @ApiProperty({
+    example: '2024-03-20',
     description: 'Data de início do investimento'
   })
   @IsDateString()
-  data_inicio: Date;
+  @IsNotEmpty()
+  data_inicio: string;
 
   @ApiProperty({
-    example: '2025-03-15',
+    example: '2025-03-20',
     description: 'Data de vencimento do investimento'
   })
   @IsDateString()
-  data_fim: Date;
+  @IsNotEmpty()
+  data_fim: string;
 
   @ApiProperty({
     example: 'CDB',
     description: 'Tipo do investimento',
     enum: TipoInvestimento
   })
-  @IsNotEmpty()
   @IsEnum(TipoInvestimento)
+  @IsNotEmpty()
   tipo_investimento: TipoInvestimento;
 
   @ApiProperty({
-    description: 'Características detalhadas do investimento',
-    type: () => CaracteristicasInvestimentoDto
+    description: 'Características do investimento'
   })
-  @IsNotEmpty()
   @ValidateNested()
   @Type(() => CaracteristicasInvestimentoDto)
+  @IsNotEmpty()
   caracteristicas: CaracteristicasInvestimentoDto;
 } 

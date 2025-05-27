@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
 export type InvestimentoDocument = Investimento & Document;
 
@@ -33,11 +33,32 @@ export interface CaracteristicasInvestimento {
 
 @Schema({ timestamps: true })
 export class Investimento {
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Usuario', required: true })
-  usuario_id: MongooseSchema.Types.ObjectId;
+  @Prop({ required: true })
+  titulo: string;
 
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Banco', required: true })
-  banco_id: MongooseSchema.Types.ObjectId;
+  @Prop({ required: true })
+  valor: number;
+
+  @Prop({ required: true })
+  banco: string;
+
+  @Prop({ required: true })
+  rendimento: number;
+
+  @Prop({ required: true })
+  tipo: string;
+
+  @Prop({ required: true, type: Types.ObjectId })
+  usuario_id: Types.ObjectId;
+
+  @Prop()
+  created_at?: Date;
+
+  @Prop()
+  updated_at?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'Banco', required: true })
+  banco_id: Types.ObjectId;
 
   @Prop({ required: true })
   valor_investimento: number;
