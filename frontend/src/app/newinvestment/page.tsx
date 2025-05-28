@@ -413,7 +413,9 @@ export default function NewInvestmentPage() {
                         </div>
                     </form>
                 </div>
+        
             </main>
         </PrivateLayout>
+        
     );
 }

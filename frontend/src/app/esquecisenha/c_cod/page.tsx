@@ -8,12 +8,8 @@ export default function ProfilePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault(); // Evita o comportamento padrão do formulário
-    if (document.getElementById('codigo').value === "1234") { 
-      router.push('/auth/esqueci-senha/n_senha')
-    } // Redireciona para a rota desejada
-    else { 
-      alert('Código inválido!')
-    } // Exibe a mensagem de alerta
+   // Redireciona para a rota desejada
+     // Exibe a mensagem de alerta
   };
 
   return (

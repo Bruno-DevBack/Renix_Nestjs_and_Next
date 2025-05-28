@@ -1,76 +1,95 @@
-"use client";
-import "./globals.css";
-import "@fortawesome/fontawesome-free/css/all.css";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+'use client';
+import './globals.css';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { FiMenu, FiX } from 'react-icons/fi';  // Importa o X
 
 function Navbar() {
   const { usuario, signOut } = useAuth();
   const pathname = usePathname();
+  const [menuAberto, setMenuAberto] = useState(false);
 
-  // Não mostra a navbar nas rotas públicas
   if (['/login', '/register', '/'].includes(pathname)) {
     return null;
   }
 
   return (
-    <nav className="bg-white shadow-sm px-6 py-3 flex justify-between items-center border-b border-gray-200">
+    <nav className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
       <div className="flex items-center gap-3">
-        <Link href="/investments" className="flex items-center gap-3">
-          <img src="/1.png" alt="Logo" className="w-8 h-8" />
-          <span className="text-lg text-black font-bold">RENIX</span>
-        </Link>
-      </div>
-      <div className="flex items-center gap-6">
-        <Link 
-          href="/investments"
-          className="text-gray-600 hover:text-emerald-600 transition-colors"
+        <button
+          onClick={() => setMenuAberto(true)}
+          className="text-xl font-bold md:hidden"
+          aria-label="Abrir menu"
         >
-          Investimentos
+          <FiMenu size={24} />
+        </button>
+        <img src="/logo.png" alt="Logo" className="w-10 h-10" />
+        <Link href="/investments" className="text-xl text-black font-bold mr-10">
+          RENIX
         </Link>
-        {usuario && (
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-700">{usuario.nome_usuario}</span>
-            <div className="relative group">
-              <button className="focus:outline-none">
-                <img
-                  src={usuario.fotoPerfilBase64 || "/avatar.png"}
-                  alt="Avatar"
-                  className="w-8 h-8 rounded-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "/avatar.png";
-                  }}
-                />
-              </button>
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 invisible group-hover:visible z-50">
-                <Link
-                  href="/profile"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Perfil
-                </Link>
-                <button
-                  onClick={() => signOut()}
-                  className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                >
-                  Sair
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Direita: usuário */}
+      <div className="flex items-center gap-3">
+        <span className="text-md hidden sm:block">
+          {usuario?.nome_usuario || 'Olá, Usuário'}
+        </span>
+
+
+        <Link href="/profile" passHref>
+          <img
+            src={usuario?.fotoPerfilBase64 || '/avatar.png'}
+            alt="Avatar"
+            className="w-8 h-8 rounded-full object-cover cursor-pointer"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = '/avatar.png';
+            }}
+          />
+        </Link>
+
+      </div>
+
+      {/* Menu lateral */}
+      {menuAberto && (
+        <div className="fixed top-0 left-0 h-full w-64 bg-white shadow-lg p-6 z-50">
+          {/* Botão fechar com ícone X */}
+          <button
+            onClick={() => setMenuAberto(false)}
+            aria-label="Fechar menu"
+            className="mb-6 text-2xl font-bold"
+          >
+            <FiX />
+          </button>
+
+          <ul className="space-y-4">
+            <li>
+              <Link href="/investments" onClick={() => setMenuAberto(false)} className="hover:text-blue-600">
+                Investimentos
+              </Link>
+            </li>
+            <li>
+              {/* Para sair, chamar signOut e fechar menu */}
+              <button
+                onClick={() => {
+                  signOut();
+                  setMenuAberto(false);
+                }}
+                className="text-red-600 hover:text-red-800"
+              >
+                Sair
+              </button>
+            </li>
+          </ul>
+        </div>
+      )}
     </nav>
   );
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
       <body>

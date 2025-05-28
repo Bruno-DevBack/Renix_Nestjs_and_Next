@@ -259,16 +259,6 @@ export default function InvestmentsPage() {
             </Dialog.Panel>
           </div>
         </Dialog>
-
-        <footer className="bg-white shadow-sm mt-auto">
-          <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row items-center justify-between text-sm text-gray-500">
-            <span>© 2025 <a href="/" className="hover:underline">Renix™</a>. Todos os direitos reservados.</span>
-            <div className="flex gap-4 mt-2 md:mt-0">
-              <a href="/sobre" className="hover:underline">Sobre</a>
-              <a href="/contato" className="hover:underline">Contato</a>
-            </div>
-          </div>
-        </footer>
       </div>
     </PrivateLayout>
   );

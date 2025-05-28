@@ -32,14 +32,19 @@ export function PrivateLayout({ children }: PrivateLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <main className="container mx-auto px-4 py-8">
+    // flex vertical com altura mínima full screen
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      {/* main cresce para preencher o espaço */}
+      <main className="container mx-auto px-4 py-8 flex-grow">
         {children}
       </main>
 
-      <footer className="bg-white shadow-sm mt-auto">
+      {/* footer fixo no final */}
+      <footer className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row items-center justify-between text-sm text-gray-500">
-          <span>© 2025 <Link href="/" className="hover:underline">Renix™</Link>. Todos os direitos reservados.</span>
+          <span>
+            © 2025 <Link href="/" className="hover:underline">Renix™</Link>. Todos os direitos reservados.
+          </span>
           <div className="flex gap-4 mt-2 md:mt-0">
             <Link href="/sobre" className="hover:underline">Sobre</Link>
             <Link href="/contato" className="hover:underline">Contato</Link>
@@ -48,4 +53,4 @@ export function PrivateLayout({ children }: PrivateLayoutProps) {
       </footer>
     </div>
   );
-} 
+}

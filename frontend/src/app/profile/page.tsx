@@ -5,7 +5,8 @@ import { AuthGuard } from '@/components/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProfilePage() {
-  const { usuario } = useAuth();
+  const { usuario, signOut } = useAuth();
+
 
   if (!usuario) {
     return null;
@@ -18,9 +19,9 @@ export default function ProfilePage() {
         <main className="flex-1 flex items-center justify-center py-10 px-4 bg-gray-50">
           <div className="w-full max-w-sm bg-white rounded-2xl shadow-md p-6 flex flex-col items-center space-y-6">
             <div className="w-24 h-24 rounded-full bg-gray-100 overflow-hidden border border-gray-300">
-              <img 
-                src={usuario?.fotoPerfilBase64 || "/avatar.png"} 
-                alt="Foto de perfil" 
+              <img
+                src={usuario?.fotoPerfilBase64 || "/avatar.png"}
+                alt="Foto de perfil"
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
@@ -48,13 +49,25 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <Link href="/profileedit">
-              <button className="bg-[#028264] hover:bg-[#026953] transition-colors text-white font-semibold px-10 py-2 rounded-xl mt-4 shadow-md">
-                EDITAR
+            <div className="flex gap-4">
+              <Link href="/profileedit">
+                <button className="bg-[#028264] hover:bg-[#026953] transition-colors text-white font-semibold px-10 py-2 rounded-xl mt-4 shadow-md">
+                  EDITAR
+                </button>
+              </Link>
+              <button
+                onClick={() => {
+                  signOut();
+                }}
+                className="bg-[#e12f2f] hover:bg-[#cb2b2b] transition-colors text-white font-semibold px-10 py-2 rounded-xl mt-4 shadow-md"
+              >
+                SAIR
               </button>
-            </Link>
+
+            </div>
           </div>
         </main>
+
 
         {/* Rodapé */}
         <footer className="bg-white mt-12 shadow-sm">
