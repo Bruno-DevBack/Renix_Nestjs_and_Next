@@ -32,7 +32,7 @@ export class DashboardService {
   async findOne(id: string): Promise<DashboardDocument | null> {
     try {
       console.log('Debug - Buscando dashboard por ID:', id);
-      
+
       if (!isValidObjectId(id)) {
         console.error('Debug - ID de dashboard inválido:', id);
         throw new BadRequestException('ID de dashboard inválido');
@@ -41,7 +41,7 @@ export class DashboardService {
       const dashboard = await this.dashboardModel
         .findById(id)
         .exec();
-      
+
       console.log('Debug - Resultado da busca:', dashboard ? 'Dashboard encontrado' : 'Dashboard não encontrado');
 
       if (!dashboard) {
@@ -98,7 +98,7 @@ export class DashboardService {
   async gerarPdf(id: string): Promise<Buffer> {
     try {
       console.log('Debug - Buscando dashboard para PDF:', id);
-      
+
       const dashboard = await this.dashboardModel.findById(id);
       if (!dashboard) {
         console.log('Debug - Dashboard não encontrado:', id);
@@ -199,6 +199,32 @@ export class DashboardService {
       case 3: return 'D+30';
       case 4: return 'D+60';
       default: return 'D+0';
+    }
+  }
+
+  async remove(id: string): Promise<void> {
+    console.log('Debug - Removendo dashboard:', id);
+    try {
+      if (!isValidObjectId(id)) {
+        console.error('Debug - ID de dashboard inválido:', id);
+        throw new BadRequestException('ID de dashboard inválido');
+      }
+
+      const resultado = await this.dashboardModel.deleteOne({ _id: id });
+
+      if (resultado.deletedCount === 0) {
+        console.error('Debug - Dashboard não encontrado para exclusão:', id);
+        throw new NotFoundException('Dashboard não encontrado');
+      }
+
+      console.log('Debug - Dashboard removido com sucesso:', id);
+    } catch (error) {
+      console.error('Debug - Erro ao remover dashboard:', {
+        id,
+        error: error.message,
+        stack: error.stack
+      });
+      throw error;
     }
   }
 } 

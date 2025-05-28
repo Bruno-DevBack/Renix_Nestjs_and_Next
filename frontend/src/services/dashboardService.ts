@@ -9,9 +9,20 @@ interface ApiResponse<T> {
 class DashboardService {
     private readonly baseUrl = '/dashboard';
 
-    public async listarTodos(): Promise<Dashboard[]> {
-        const response = await api.get<Dashboard[]>(this.baseUrl);
-        return response.data;
+    public async listarTodos(): Promise<ApiResponse<Dashboard[]>> {
+        try {
+            console.log('Debug - Buscando dashboards do usuário');
+            const response = await api.get<ApiResponse<Dashboard[]>>(this.baseUrl);
+            console.log('Debug - Dashboards encontrados:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('Debug - Erro ao buscar dashboards:', error);
+            throw error;
+        }
+    }
+
+    public async excluir(id: string): Promise<void> {
+        await api.delete(`${this.baseUrl}/${id}`);
     }
 
     public async buscarPorId(id: string): Promise<Dashboard> {
@@ -19,7 +30,7 @@ class DashboardService {
             console.log('Debug - Buscando dashboard:', id);
             const response = await api.get<ApiResponse<Dashboard>>(`${this.baseUrl}/${id}`);
             console.log('Debug - Resposta da API:', response.data);
-            
+
             if (!response.data.data) {
                 throw new Error('Dashboard não encontrado');
             }

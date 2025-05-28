@@ -7,7 +7,7 @@ export interface Usuario {
     telefone_usuario?: string;
     eAdmin: boolean;
     ePremium: boolean;
-    dashboards: any[];
+    dashboards: Dashboard[];
     historico_investimentos: any[];
     historico_dashboards: any[];
     foto_perfil?: string;
@@ -189,14 +189,15 @@ export interface InvestimentoHistorico {
 export interface Dashboard {
     _id: string;
     usuario_id: string;
-    nome_usuario: string;
     banco_id: string;
     nome_banco: string;
-    investimento_id: string;
+    logoBase64?: string;
     tipo_investimento: string;
     valor_investido: number;
-    data_inicio: Date;
-    data_fim: Date;
+    valor_atual: number;
+    valor_projetado: number;
+    data_inicio: string;
+    data_fim: string;
     dias_corridos: number;
     rendimento: {
         valor_bruto: number;
@@ -208,31 +209,14 @@ export interface Dashboard {
         iof: number;
         outras_taxas: number;
     };
-    valor_atual: number;
-    valor_projetado: number;
     indicadores_mercado: {
         selic: number;
         cdi: number;
         ipca: number;
-        ibovespa?: number;
-        ifix?: number;
     };
     alertas?: string[];
-    comparativo_mercado?: {
-        versus_poupanca: number;
-        versus_cdi: number;
-        versus_ipca: number;
-    };
-    investimentos: Array<{
-        valor: number;
-        rendimento: number;
-        risco: number;
-        tipo: string;
-        banco: string;
-        liquidez: number;
-    }>;
-    createdAt?: string;
-    updatedAt?: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface DashboardHistorico {

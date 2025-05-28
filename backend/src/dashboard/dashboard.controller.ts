@@ -5,7 +5,8 @@ import {
   Res,
   NotFoundException,
   UseGuards,
-  Request
+  Request,
+  Delete
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
@@ -134,10 +135,53 @@ export class DashboardController {
         return;
       }
 
-      res.status(500).json({ 
+      res.status(500).json({
         message: 'Erro ao gerar PDF',
-        error: error.message 
+        error: error.message
       });
+    }
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Excluir um dashboard' })
+  @ApiParam({ name: 'id', description: 'ID do dashboard' })
+  @ApiResponse({ status: 200, description: 'Dashboard excluído com sucesso' })
+  @ApiResponse({ status: 404, description: 'Dashboard não encontrado' })
+  async remove(@Param('id') id: string, @Request() req): Promise<void> {
+    console.log('Debug - Requisição para excluir dashboard:', {
+      id,
+      usuario: req.user,
+      headers: req.headers,
+      url: req.url,
+      method: req.method
+    });
+
+    try {
+      const dashboard = await this.dashboardService.findOne(id);
+      if (!dashboard) {
+        console.log('Debug - Dashboard não encontrado:', id);
+        throw new NotFoundException('Dashboard não encontrado');
+      }
+
+      // Verificar se o dashboard pertence ao usuário
+      if (dashboard.usuario_id.toString() !== req.user.sub) {
+        console.log('Debug - Acesso negado:', {
+          dashboardUsuarioId: dashboard.usuario_id,
+          requestUsuarioId: req.user.sub
+        });
+        throw new NotFoundException('Dashboard não encontrado');
+      }
+
+      await this.dashboardService.remove(id);
+      console.log('Debug - Dashboard excluído com sucesso:', id);
+    } catch (error) {
+      console.error('Debug - Erro ao excluir dashboard:', {
+        id,
+        error: error.message,
+        stack: error.stack,
+        usuario: req.user
+      });
+      throw error;
     }
   }
 } 

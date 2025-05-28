@@ -2,11 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { FaEdit, FaFilePdf } from 'react-icons/fa';
+import { FaEdit, FaFilePdf, FaTrash } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { PrivateLayout } from '@/components/PrivateLayout';
 import { dashboardService } from '@/services/dashboardService';
 import { Dashboard } from '@/types';
+import { Dialog } from '@headlessui/react';
 
 export default function InvestmentsPage() {
   const router = useRouter();
@@ -14,29 +15,46 @@ export default function InvestmentsPage() {
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
+  const [dashboardParaExcluir, setDashboardParaExcluir] = useState<Dashboard | null>(null);
+
+  // Função auxiliar para formatar valores monetários
+  const formatarMoeda = (valor?: number) => {
+    if (valor === undefined || valor === null) return 'R$ 0,00';
+    return `R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Função auxiliar para formatar porcentagens
+  const formatarPorcentagem = (valor?: number) => {
+    if (valor === undefined || valor === null) return '0,00%';
+    return `${valor.toFixed(2)}%`;
+  };
+
+  // Função auxiliar para calcular o valor rendido
+  const calcularValorRendido = (dashboard: Dashboard) => {
+    if (!dashboard.rendimento?.valor_liquido || !dashboard.valor_investido) return 0;
+    return dashboard.rendimento.valor_liquido - dashboard.valor_investido;
+  };
+
+  const fetchDashboards = async () => {
+    try {
+      setLoading(true);
+      console.log('Debug - Buscando dashboards');
+      const response = await dashboardService.listarTodos();
+      console.log('Debug - Dashboards encontrados:', response);
+
+      setDashboards(response.data);
+    } catch (err: any) {
+      console.error('Erro ao buscar dashboards:', err);
+      setErro(err?.message || 'Erro ao carregar dashboards.');
+      setDashboards([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDashboards = async () => {
-      if (!usuario?.id) {
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const data = await dashboardService.listarTodos();
-        // Garante que data é um array
-        setDashboards(Array.isArray(data) ? data : []);
-      } catch (err: any) {
-        console.error('Erro ao buscar dashboards:', err);
-        setErro(err?.message || 'Erro ao carregar dashboards.');
-        setDashboards([]); // Garante que dashboards é um array vazio em caso de erro
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboards();
-  }, [usuario]);
+  }, []);
 
   const handleGerarPdf = async (id: string) => {
     try {
@@ -52,6 +70,23 @@ export default function InvestmentsPage() {
     } catch (err: any) {
       console.error('Erro ao gerar PDF:', err);
       alert('Erro ao gerar PDF. Tente novamente.');
+    }
+  };
+
+  const handleExcluir = async (dashboard: Dashboard) => {
+    setDashboardParaExcluir(dashboard);
+  };
+
+  const confirmarExclusao = async () => {
+    if (!dashboardParaExcluir) return;
+
+    try {
+      await dashboardService.excluir(dashboardParaExcluir._id);
+      await fetchDashboards();
+      setDashboardParaExcluir(null);
+    } catch (err: any) {
+      console.error('Erro ao excluir dashboard:', err);
+      alert('Erro ao excluir dashboard. Tente novamente.');
     }
   };
 
@@ -101,17 +136,17 @@ export default function InvestmentsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {dashboards.map((dashboard) => (
                 <div
-                  key={dashboard.investimento_id}
+                  key={dashboard._id}
                   className="relative bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition group"
                 >
                   <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        router.push(`/newinvestment?id=${dashboard.investimento_id}`);
+                        router.push(`/dashboard/${dashboard._id}`);
                       }}
                       className="text-gray-400 hover:text-emerald-600 transition"
-                      title="Editar"
+                      title="Ver detalhes"
                     >
                       <FaEdit size={16} />
                     </button>
@@ -125,47 +160,60 @@ export default function InvestmentsPage() {
                     >
                       <FaFilePdf size={16} />
                     </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExcluir(dashboard);
+                      }}
+                      className="text-gray-400 hover:text-red-600 transition"
+                      title="Excluir"
+                    >
+                      <FaTrash size={16} />
+                    </button>
                   </div>
 
                   <div
-                    onClick={() => router.push(`/dashboard/${dashboard.investimento_id}`)}
+                    onClick={() => router.push(`/dashboard/${dashboard._id}`)}
                     className="cursor-pointer"
                   >
                     <div className="flex items-center gap-2 mb-3">
-                      <h3 className="text-lg font-semibold text-gray-900">{dashboard.nome_banco}</h3>
+                      {dashboard.logoBase64 ? (
+                        <img
+                          src={dashboard.logoBase64}
+                          alt={`Logo ${dashboard.nome_banco}`}
+                          className="w-8 h-8 rounded-full object-contain"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                          <span className="text-sm font-medium text-gray-500">
+                            {dashboard.nome_banco?.charAt(0)?.toUpperCase() || 'B'}
+                          </span>
+                        </div>
+                      )}
+                      <h3 className="text-lg font-semibold text-gray-900">{dashboard.nome_banco || 'Banco não informado'}</h3>
                       <span className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 rounded-full">
-                        {dashboard.tipo_investimento}
+                        {dashboard.tipo_investimento || 'Tipo não informado'}
                       </span>
                     </div>
                     <div className="space-y-3">
                       <div>
                         <p className="text-sm text-gray-500">Valor Investido</p>
                         <p className="text-2xl font-bold text-emerald-600">
-                          R$ {dashboard.valor_investido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {formatarMoeda(dashboard.valor_investido)}
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <p className="text-sm text-gray-500">Rendimento</p>
                           <p className="text-lg font-semibold text-emerald-600">
-                            {dashboard.rendimento.rentabilidade_anualizada.toFixed(2)}% a.a.
+                            {formatarPorcentagem(dashboard.rendimento?.rentabilidade_anualizada)}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Valor Rendido</p>
                           <p className="text-lg font-semibold text-emerald-600">
-                            R$ {dashboard.rendimento.valor_rendido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            {formatarMoeda(calcularValorRendido(dashboard))}
                           </p>
-                        </div>
-                      </div>
-                      <div className="pt-2 border-t border-gray-100">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">Início</span>
-                          <span className="text-gray-900">{new Date(dashboard.data_inicio).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                        <div className="flex justify-between text-sm mt-1">
-                          <span className="text-gray-500">Vencimento</span>
-                          <span className="text-gray-900">{new Date(dashboard.data_fim).toLocaleDateString('pt-BR')}</span>
                         </div>
                       </div>
                     </div>
@@ -175,6 +223,42 @@ export default function InvestmentsPage() {
             </div>
           )}
         </div>
+
+        <Dialog
+          open={!!dashboardParaExcluir}
+          onClose={() => setDashboardParaExcluir(null)}
+          className="relative z-50"
+        >
+          <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <Dialog.Panel className="mx-auto max-w-sm rounded-lg bg-white p-6 shadow-xl">
+              <Dialog.Title className="text-lg font-medium text-gray-900 mb-4">
+                Confirmar Exclusão
+              </Dialog.Title>
+
+              <p className="text-gray-600 mb-6">
+                Tem certeza que deseja excluir o investimento em {dashboardParaExcluir?.nome_banco || 'banco não informado'}?
+                Esta ação não pode ser desfeita.
+              </p>
+
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setDashboardParaExcluir(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarExclusao}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                >
+                  Excluir
+                </button>
+              </div>
+            </Dialog.Panel>
+          </div>
+        </Dialog>
 
         <footer className="bg-white shadow-sm mt-auto">
           <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row items-center justify-between text-sm text-gray-500">
