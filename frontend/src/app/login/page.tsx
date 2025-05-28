@@ -53,7 +53,12 @@ export default function LoginPage() {
       // O redirecionamento é feito automaticamente pelo AuthContext
     } catch (error: any) {
       console.error('Erro no login:', error);
-      if (error.response?.status === 400) {
+      if (error.response?.status === 401) {
+        setMensagem('O usuário não existe');
+        setTimeout(() => {
+          router.push('/cadastro');
+        }, 2000); // Aguarda 2 segundos antes de redirecionar
+      } else if (error.response?.status === 400) {
         const mensagem = error.response.data.message;
         if (Array.isArray(mensagem)) {
           setMensagem(mensagem.join('. '));
