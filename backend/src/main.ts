@@ -24,7 +24,7 @@
  * 
  * @example
  * // Exemplo de uso da API documentada
- * http://localhost:3000/api/docs
+ * http://localhost:3333/api/docs
  */
 
 import { NestFactory } from '@nestjs/core';
@@ -169,6 +169,9 @@ async function bootstrap() {
 
   // Adiciona interceptor global para transformação de respostas
   app.useGlobalInterceptors(new TransformInterceptor());
+
+  // Define o prefixo global /api para todas as rotas
+  app.setGlobalPrefix('api');
 
   // Inicia o servidor na porta 3333
   await app.listen(3333);
