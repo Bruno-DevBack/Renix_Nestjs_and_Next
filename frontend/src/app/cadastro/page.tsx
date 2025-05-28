@@ -84,7 +84,6 @@ export default function CadastroPage() {
     }
 
     if (senha.length < 8) {
-      setMensagem("A senha deve ter pelo menos 8 caracteres.");
       setError("A senha deve ter pelo menos 8 caracteres.");
       setCarregando(false);
       return;

@@ -65,7 +65,7 @@ import { AuthModule } from './auth/auth.module';
     }),
 
     // Configuração do rate limiting global
-    ThrottlerModule.forRootAsync({
+    /* ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService): Promise<ThrottlerModuleOptions> => ({
         throttlers: [{
@@ -74,7 +74,7 @@ import { AuthModule } from './auth/auth.module';
         }]
       }),
       inject: [ConfigService],
-    }),
+    }), */
 
     // Módulos da aplicação
     AuthModule,           // Autenticação e autorização

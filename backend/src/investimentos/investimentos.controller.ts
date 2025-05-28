@@ -29,12 +29,12 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InvestimentosService } from './investimentos.service';
 import { CreateInvestimentoDto } from './dto/create-investimento.dto';
-import { RateLimitGuard } from '../common/guards/rate-limit.guard';
+// import { RateLimitGuard } from '../common/guards/rate-limit.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Investimentos')
 @Controller('investimentos')
-@UseGuards(RateLimitGuard, JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class InvestimentosController {
   constructor(private readonly investimentosService: InvestimentosService) { }

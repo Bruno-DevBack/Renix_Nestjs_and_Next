@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AdminGuard } from './guards/admin.guard';
-import { RateLimitGuard } from './guards/rate-limit.guard';
+// import { RateLimitGuard } from './guards/rate-limit.guard';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 
@@ -20,7 +20,6 @@ import { TransformInterceptor } from './interceptors/transform.interceptor';
  * 
  * Componentes principais:
  * - AdminGuard: Controle de acesso administrativo
- * - RateLimitGuard: Proteção contra excesso de requisições
  * - HttpExceptionFilter: Tratamento padronizado de erros
  * - TransformInterceptor: Padronização de respostas
  * 
@@ -35,13 +34,13 @@ import { TransformInterceptor } from './interceptors/transform.interceptor';
 @Module({
     providers: [
         AdminGuard,           // Guard para controle de acesso administrativo
-        RateLimitGuard,       // Guard para limitação de requisições
+        // RateLimitGuard,       // Guard para limitação de requisições
         HttpExceptionFilter,   // Filtro para tratamento de exceções HTTP
         TransformInterceptor   // Interceptor para transformação de respostas
     ],
     exports: [
         AdminGuard,           // Exporta o guard de admin para uso em outros módulos
-        RateLimitGuard,       // Exporta o guard de rate limit para uso em outros módulos
+        // RateLimitGuard,       // Exporta o guard de rate limit para uso em outros módulos
         HttpExceptionFilter,   // Exporta o filtro de exceções para uso global
         TransformInterceptor   // Exporta o interceptor de transformação para uso global
     ]
