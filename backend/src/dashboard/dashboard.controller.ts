@@ -1,3 +1,48 @@
+/**
+ * Controller responsável pelo gerenciamento de dashboards de investimentos
+ * 
+ * @description
+ * Este controller implementa endpoints REST para gerenciar dashboards
+ * de análise de investimentos. Suas responsabilidades incluem:
+ * 
+ * Funcionalidades:
+ * - Listagem de dashboards do usuário
+ * - Busca de dashboard específico
+ * - Geração de relatórios em PDF
+ * - Exclusão de dashboards
+ * 
+ * Segurança:
+ * - Autenticação via JWT em todos os endpoints
+ * - Validação de propriedade do dashboard
+ * - Logging detalhado para auditoria
+ * - Tratamento de erros padronizado
+ * 
+ * Endpoints disponíveis:
+ * - GET /dashboard - Lista todos os dashboards do usuário
+ * - GET /dashboard/:id - Busca um dashboard específico
+ * - GET /dashboard/:id/pdf - Gera relatório PDF do dashboard
+ * - DELETE /dashboard/:id - Remove um dashboard
+ * 
+ * @example
+ * // Exemplo de uso do endpoint de listagem
+ * GET /dashboard
+ * Authorization: Bearer {token}
+ * 
+ * // Resposta
+ * [
+ *   {
+ *     "id": "123",
+ *     "usuario_id": "456",
+ *     "valor_investido": 1000,
+ *     "tipo_investimento": "CDB",
+ *     "rendimento": {
+ *       "valor_bruto": 1100,
+ *       "valor_liquido": 1080
+ *     }
+ *   }
+ * ]
+ */
+
 import {
   Controller,
   Get,
@@ -22,6 +67,41 @@ import { Types, Document } from 'mongoose';
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) { }
 
+  /**
+   * Lista todos os dashboards do usuário autenticado
+   * 
+   * @description
+   * Este endpoint retorna uma lista com todos os dashboards
+   * associados ao usuário que fez a requisição. Inclui:
+   * - Dados básicos do dashboard
+   * - Valores e rendimentos
+   * - Indicadores e métricas
+   * - Status e alertas
+   * 
+   * @param req - Request com dados do usuário autenticado
+   * @returns Promise<DashboardDocument[]> Lista de dashboards
+   * 
+   * @example
+   * // Exemplo de requisição
+   * GET /dashboard
+   * Authorization: Bearer {token}
+   * 
+   * // Exemplo de resposta
+   * [
+   *   {
+   *     "id": "123",
+   *     "valor_investido": 1000,
+   *     "rendimento": {
+   *       "valor_bruto": 1100,
+   *       "valor_liquido": 1080
+   *     },
+   *     "indicadores": {
+   *       "rentabilidade": 8.5,
+   *       "risco": "baixo"
+   *     }
+   *   }
+   * ]
+   */
   @Get()
   @ApiOperation({ summary: 'Listar todos os dashboards do usuário' })
   async findAll(@Request() req): Promise<DashboardDocument[]> {
@@ -49,6 +129,43 @@ export class DashboardController {
     }
   }
 
+  /**
+   * Busca um dashboard específico por ID
+   * 
+   * @description
+   * Este endpoint retorna os detalhes completos de um dashboard
+   * específico. Inclui validações de:
+   * - Existência do dashboard
+   * - Propriedade do dashboard (usuário autenticado)
+   * - Formato do ID
+   * 
+   * @param id - ID único do dashboard
+   * @param req - Request com dados do usuário autenticado
+   * @returns Promise<DashboardDocument> Dashboard encontrado
+   * @throws {NotFoundException} Se o dashboard não for encontrado
+   * 
+   * @example
+   * // Exemplo de requisição
+   * GET /dashboard/123
+   * Authorization: Bearer {token}
+   * 
+   * // Exemplo de resposta
+   * {
+   *   "id": "123",
+   *   "usuario_id": "456",
+   *   "valor_investido": 1000,
+   *   "rendimento": {
+   *     "valor_bruto": 1100,
+   *     "valor_liquido": 1080,
+   *     "rentabilidade": 8.5
+   *   },
+   *   "indicadores_mercado": {
+   *     "selic": 12.75,
+   *     "cdi": 12.65,
+   *     "ipca": 4.5
+   *   }
+   * }
+   */
   @Get(':id')
   @ApiOperation({ summary: 'Buscar dashboard por ID' })
   @ApiParam({ name: 'id', description: 'ID do dashboard' })
@@ -98,6 +215,35 @@ export class DashboardController {
     }
   }
 
+  /**
+   * Gera um relatório PDF do dashboard
+   * 
+   * @description
+   * Este endpoint gera um arquivo PDF contendo uma análise
+   * detalhada do dashboard, incluindo:
+   * - Resumo do investimento
+   * - Gráficos de rendimento
+   * - Análise de performance
+   * - Comparativos de mercado
+   * - Projeções futuras
+   * 
+   * O PDF é gerado em memória e enviado como download
+   * com headers apropriados.
+   * 
+   * @param id - ID único do dashboard
+   * @param req - Request com dados do usuário
+   * @param res - Response para envio do arquivo
+   * @throws {NotFoundException} Se o dashboard não for encontrado
+   * 
+   * @example
+   * // Exemplo de requisição
+   * GET /dashboard/123/pdf
+   * Authorization: Bearer {token}
+   * 
+   * // Headers da resposta
+   * Content-Type: application/pdf
+   * Content-Disposition: attachment; filename=dashboard-123.pdf
+   */
   @Get(':id/pdf')
   @ApiOperation({ summary: 'Gerar PDF do dashboard' })
   async gerarPdf(
@@ -142,6 +288,36 @@ export class DashboardController {
     }
   }
 
+  /**
+   * Remove um dashboard específico
+   * 
+   * @description
+   * Este endpoint exclui permanentemente um dashboard do sistema.
+   * Realiza as seguintes validações:
+   * - Existência do dashboard
+   * - Propriedade do dashboard (usuário autenticado)
+   * - Formato do ID
+   * 
+   * A exclusão é permanente e não pode ser desfeita.
+   * 
+   * @param id - ID único do dashboard
+   * @param req - Request com dados do usuário
+   * @throws {NotFoundException} Se o dashboard não for encontrado
+   * 
+   * @example
+   * // Exemplo de requisição
+   * DELETE /dashboard/123
+   * Authorization: Bearer {token}
+   * 
+   * // Exemplo de resposta bem-sucedida
+   * Status: 200 OK
+   * 
+   * // Exemplo de resposta com erro
+   * Status: 404 Not Found
+   * {
+   *   "message": "Dashboard não encontrado"
+   * }
+   */
   @Delete(':id')
   @ApiOperation({ summary: 'Excluir um dashboard' })
   @ApiParam({ name: 'id', description: 'ID do dashboard' })

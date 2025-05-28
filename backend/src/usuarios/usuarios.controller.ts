@@ -32,7 +32,51 @@ import { memoryStorage } from 'multer';
 
 /**
  * Controller responsável por gerenciar todas as operações relacionadas aos usuários
- * Inclui operações de registro, login, atualização e gerenciamento de histórico
+ * 
+ * @description
+ * Este controller implementa endpoints REST para gerenciar usuários do sistema.
+ * Suas responsabilidades incluem:
+ * 
+ * Funcionalidades:
+ * - Registro de novos usuários
+ * - Autenticação (login/logout)
+ * - Atualização de perfil
+ * - Upload de foto de perfil
+ * - Gerenciamento de histórico
+ * - Consulta de dados do usuário
+ * 
+ * Segurança:
+ * - Autenticação via JWT
+ * - Validação de permissões
+ * - Proteção de rotas admin
+ * - Validação de dados
+ * 
+ * Endpoints disponíveis:
+ * - POST /usuarios/registro - Registra novo usuário
+ * - POST /usuarios/login - Autentica usuário
+ * - POST /usuarios/logout - Realiza logout
+ * - GET /usuarios/me - Obtém dados do usuário logado
+ * - GET /usuarios/:id - Busca usuário por ID (admin)
+ * - PATCH /usuarios/:id - Atualiza dados do usuário
+ * - POST /usuarios/:id/foto - Upload de foto de perfil
+ * - PUT /usuarios/:id/foto - Atualiza foto de perfil
+ * 
+ * @example
+ * // Exemplo de registro de usuário
+ * POST /usuarios/registro
+ * {
+ *   "nome_usuario": "João Silva",
+ *   "email_usuario": "joao@email.com",
+ *   "senha_usuario": "Senha123!",
+ *   "telefone_usuario": "(11) 98765-4321"
+ * }
+ * 
+ * // Exemplo de login
+ * POST /usuarios/login
+ * {
+ *   "email_usuario": "joao@email.com",
+ *   "senha_usuario": "Senha123!"
+ * }
  */
 @ApiTags('Usuários')
 @Controller('usuarios')
@@ -41,6 +85,21 @@ export class UsuariosController {
 
   /**
    * Endpoint para registrar um novo usuário no sistema
+   * 
+   * @description
+   * Realiza o registro de um novo usuário com validações:
+   * - Email único
+   * - Senha forte
+   * - Formato de telefone
+   * - Nome completo
+   * 
+   * Por padrão, novos usuários são criados com:
+   * - eAdmin: false
+   * - ePremium: false
+   * - Históricos vazios
+   * 
+   * @throws ConflictException - Se o email já estiver cadastrado
+   * @throws BadRequestException - Se os dados forem inválidos
    */
   @Post('registro')
   @ApiOperation({ summary: 'Registrar novo usuário' })
@@ -53,6 +112,18 @@ export class UsuariosController {
 
   /**
    * Endpoint para autenticar um usuário no sistema
+   * 
+   * @description
+   * Realiza a autenticação do usuário e retorna:
+   * - Dados do usuário
+   * - Token JWT
+   * - Informações de expiração
+   * - Status premium/admin
+   * 
+   * O token gerado deve ser usado no header Authorization
+   * para acessar endpoints protegidos.
+   * 
+   * @throws UnauthorizedException - Se as credenciais forem inválidas
    */
   @Post('login')
   @ApiOperation({ summary: 'Login de usuário' })
@@ -115,7 +186,18 @@ export class UsuariosController {
   }
 
   /**
-   * Endpoint para buscar informações de um usuário específico (apenas admin)
+   * Endpoint para buscar informações de um usuário específico
+   * 
+   * @description
+   * Rota protegida apenas para administradores.
+   * Retorna dados completos do usuário incluindo:
+   * - Dados pessoais
+   * - Status (admin/premium)
+   * - Históricos
+   * - Dashboards
+   * 
+   * @throws UnauthorizedException - Se o requisitante não for admin
+   * @throws NotFoundException - Se o usuário não for encontrado
    */
   @Get(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
@@ -214,7 +296,20 @@ export class UsuariosController {
   }
 
   /**
-   * Endpoint para atualizar parcialmente os dados do usuário (nome e email)
+   * Endpoint para atualizar dados do usuário
+   * 
+   * @description
+   * Permite atualização parcial dos dados:
+   * - Nome do usuário
+   * - Email (com validação de unicidade)
+   * 
+   * Mantém outros dados inalterados:
+   * - Senha
+   * - Status admin/premium
+   * - Históricos
+   * 
+   * @throws ConflictException - Se o novo email já estiver em uso
+   * @throws NotFoundException - Se o usuário não for encontrado
    */
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
@@ -398,6 +493,16 @@ export class UsuariosController {
     return this.usuariosService.editFotoPerfil(id, file);
   }
 
+  /**
+   * Endpoint para realizar logout do usuário
+   * 
+   * @description
+   * Registra o logout do usuário e invalida o token atual.
+   * Requer autenticação via token JWT.
+   * 
+   * @throws UnauthorizedException - Se o token for inválido
+   * @throws BadRequestException - Se o ID for inválido
+   */
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -421,7 +526,18 @@ export class UsuariosController {
   }
 
   /**
-   * Endpoint para obter informações do usuário logado
+   * Endpoint para obter dados do usuário logado
+   * 
+   * @description
+   * Retorna os dados completos do usuário autenticado:
+   * - Dados pessoais
+   * - Status (admin/premium)
+   * - Históricos
+   * - Dashboards
+   * - Foto de perfil (se existir)
+   * 
+   * @throws UnauthorizedException - Se o token for inválido
+   * @throws NotFoundException - Se o usuário não for encontrado
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)

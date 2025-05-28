@@ -5,27 +5,45 @@ import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 
 /**
- * Módulo responsável por fornecer funcionalidades comuns para toda a aplicação
+ * Módulo central que fornece funcionalidades comuns para toda a aplicação
  * 
- * Este módulo:
- * - Fornece guards para controle de acesso e rate limiting
- * - Implementa interceptors para transformação de respostas
- * - Fornece filtros para tratamento de exceções
- * - Disponibiliza utilitários comuns
- * - Centraliza configurações compartilhadas
+ * @description
+ * O CommonModule é um módulo fundamental que centraliza e disponibiliza
+ * componentes, utilitários e configurações compartilhadas por toda a aplicação.
+ * 
+ * Responsabilidades:
+ * - Fornecimento de guards para controle de acesso e proteção da API
+ * - Implementação de interceptors para transformação de respostas
+ * - Disponibilização de filtros para tratamento padronizado de exceções
+ * - Centralização de configurações compartilhadas
+ * - Exportação de utilitários comuns
+ * 
+ * Componentes principais:
+ * - AdminGuard: Controle de acesso administrativo
+ * - RateLimitGuard: Proteção contra excesso de requisições
+ * - HttpExceptionFilter: Tratamento padronizado de erros
+ * - TransformInterceptor: Padronização de respostas
+ * 
+ * @example
+ * // Importação do módulo em outros módulos da aplicação
+ * @Module({
+ *   imports: [CommonModule],
+ *   // ... outras configurações
+ * })
+ * export class OutroModule {}
  */
 @Module({
     providers: [
         AdminGuard,           // Guard para controle de acesso administrativo
         RateLimitGuard,       // Guard para limitação de requisições
         HttpExceptionFilter,   // Filtro para tratamento de exceções HTTP
-        TransformInterceptor  // Interceptor para transformação de respostas
+        TransformInterceptor   // Interceptor para transformação de respostas
     ],
     exports: [
-        AdminGuard,
-        RateLimitGuard,
-        HttpExceptionFilter,
-        TransformInterceptor
+        AdminGuard,           // Exporta o guard de admin para uso em outros módulos
+        RateLimitGuard,       // Exporta o guard de rate limit para uso em outros módulos
+        HttpExceptionFilter,   // Exporta o filtro de exceções para uso global
+        TransformInterceptor   // Exporta o interceptor de transformação para uso global
     ]
 })
 export class CommonModule { } 

@@ -5,21 +5,47 @@ import { BancosService } from './bancos.service';
 import { Banco, BancoSchema } from './schemas/banco.schema';
 
 /**
- * Módulo responsável por gerenciar as operações relacionadas aos bancos
+ * Módulo central para gerenciamento de bancos no sistema
  * 
- * Este módulo:
- * - Gerencia o cadastro e manutenção dos bancos no sistema
- * - Controla as informações de cada banco (taxas, investimentos, etc)
- * - Gerencia o upload e armazenamento de logos dos bancos
- * - Mantém o histórico de atualizações de cada banco
- * - Fornece endpoints para consulta de informações bancárias
+ * @description
+ * Este módulo é responsável por toda a infraestrutura relacionada
+ * aos bancos cadastrados no sistema. Suas responsabilidades incluem:
+ * 
+ * Funcionalidades principais:
+ * - CRUD completo de bancos
+ * - Gerenciamento de informações bancárias
+ * - Controle de taxas e investimentos
+ * - Gestão de recursos visuais (logos)
+ * - Histórico de atualizações
+ * 
+ * Integrações:
+ * - MongoDB via Mongoose para persistência
+ * - Endpoints REST para acesso externo
+ * - Validação de dados via DTOs
+ * - Schemas para modelagem de dados
+ * 
+ * @example
+ * // Importação e uso em outros módulos
+ * @Module({
+ *   imports: [BancosModule],
+ *   // ... outras configurações
+ * })
+ * export class AppModule {}
  */
 @Module({
   imports: [
-    // Registra o modelo de Banco no Mongoose
+    // Configura o modelo Banco no MongoDB via Mongoose
+    // Permite operações CRUD na coleção de bancos
     MongooseModule.forFeature([{ name: Banco.name, schema: BancoSchema }])
   ],
-  controllers: [BancosController], // Controller que gerencia as rotas de bancos
-  providers: [BancosService]      // Service que implementa a lógica de negócio
+  controllers: [
+    BancosController  // Gerencia endpoints REST para operações com bancos
+  ],
+  providers: [
+    BancosService     // Implementa a lógica de negócio para bancos
+  ],
+  exports: [
+    BancosService     // Permite que outros módulos utilizem o serviço de bancos
+  ]
 })
 export class BancosModule { } 

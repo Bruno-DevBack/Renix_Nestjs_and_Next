@@ -1,3 +1,15 @@
+/**
+ * Serviço responsável por gerenciar operações de investimentos
+ * 
+ * @description
+ * Este serviço implementa a lógica de negócio para:
+ * - Criação e gestão de investimentos
+ * - Cálculos de rendimentos e projeções
+ * - Integração com dashboards
+ * - Atualização de histórico do usuário
+ * - Validações e regras de negócio
+ */
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -10,6 +22,15 @@ import { CalculoInvestimentoService } from './services/calculo-investimento.serv
 
 @Injectable()
 export class InvestimentosService {
+  /**
+   * Construtor do serviço de investimentos
+   * 
+   * @param investimentoModel - Modelo Mongoose para investimentos
+   * @param dashboardModel - Modelo Mongoose para dashboards
+   * @param bancoModel - Modelo Mongoose para bancos
+   * @param usuarioModel - Modelo Mongoose para usuários
+   * @param calculoService - Serviço de cálculos financeiros
+   */
   constructor(
     @InjectModel(Investimento.name) private investimentoModel: Model<InvestimentoDocument>,
     @InjectModel(Dashboard.name) private dashboardModel: Model<DashboardDocument>,
@@ -18,6 +39,21 @@ export class InvestimentosService {
     private calculoService: CalculoInvestimentoService
   ) { }
 
+  /**
+   * Cria um novo investimento
+   * 
+   * @description
+   * Processo completo de criação de investimento:
+   * 1. Valida usuário e banco
+   * 2. Calcula rendimentos
+   * 3. Cria registro do investimento
+   * 4. Gera dashboard associado
+   * 5. Atualiza histórico do usuário
+   * 
+   * @param createInvestimentoDto - DTO com dados do investimento
+   * @returns Objeto com investimento e dashboard criados
+   * @throws {NotFoundException} Se usuário ou banco não encontrado
+   */
   async create(createInvestimentoDto: CreateInvestimentoDto) {
     const { usuario_id, banco_id, valor_investimento, data_inicio, data_fim, tipo_investimento, caracteristicas } = createInvestimentoDto;
 
@@ -165,6 +201,13 @@ export class InvestimentosService {
     };
   }
 
+  /**
+   * Busca um investimento por ID
+   * 
+   * @param id - ID único do investimento
+   * @returns Investimento encontrado
+   * @throws {NotFoundException} Se investimento não encontrado
+   */
   async findOne(id: string): Promise<Investimento> {
     const investimento = await this.investimentoModel.findById(id);
     if (!investimento) {
@@ -173,18 +216,31 @@ export class InvestimentosService {
     return investimento;
   }
 
+  /**
+   * Remove um investimento e seu dashboard associado
+   * 
+   * @param id - ID único do investimento
+   * @returns Resultado da operação de remoção
+   * @throws {NotFoundException} Se investimento não encontrado
+   */
   async remove(id: string) {
     const investimento = await this.investimentoModel.findById(id);
     if (!investimento) {
       throw new NotFoundException('Investimento não encontrado');
     }
-    
+
     // Remover dashboard associado
     await this.dashboardModel.deleteOne({ investimento_id: id });
-    
+
     return this.investimentoModel.findByIdAndDelete(id);
   }
 
+  /**
+   * Lista todos os investimentos de um usuário
+   * 
+   * @param usuarioId - ID do usuário
+   * @returns Lista de investimentos do usuário
+   */
   async findAll(usuarioId: string): Promise<Investimento[]> {
     console.log('Buscando investimentos para o usuário:', usuarioId);
     try {

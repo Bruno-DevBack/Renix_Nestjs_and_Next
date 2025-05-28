@@ -1,12 +1,32 @@
 /**
  * Serviço responsável por toda a lógica de negócio relacionada aos usuários
  * 
- * Este serviço gerencia:
- * - Criação e autenticação de usuários
+ * @description
+ * Este serviço implementa a lógica de negócio para:
+ * 
+ * Gerenciamento de Usuários:
+ * - Criação de novos usuários
+ * - Autenticação e autorização
  * - Atualização de perfis
- * - Histórico de investimentos
- * - Dashboards personalizados
- * - Permissões e níveis de acesso
+ * - Upload de fotos
+ * 
+ * Segurança:
+ * - Validação de credenciais
+ * - Hashing de senhas
+ * - Verificação de permissões
+ * - Proteção contra duplicidade
+ * 
+ * Histórico e Dados:
+ * - Registro de investimentos
+ * - Histórico de dashboards
+ * - Gestão de perfil premium
+ * - Logs de atividade
+ * 
+ * Integração:
+ * - Mongoose/MongoDB
+ * - JWT/Auth
+ * - Upload de arquivos
+ * - Validação de dados
  */
 
 import {
@@ -24,6 +44,17 @@ import { LoginUsuarioDto } from './dto/login-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { AuthService } from '../auth/auth.service';
 
+/**
+ * Interface que define a estrutura de resposta dos dados do usuário
+ * 
+ * @description
+ * Esta interface garante consistência nos dados retornados
+ * para o cliente, incluindo:
+ * - Dados básicos do usuário
+ * - Status e permissões
+ * - Históricos e dashboards
+ * - Foto de perfil (opcional)
+ */
 export interface DadosUsuarioResponse {
   id: string;
   nome_usuario: string;
@@ -37,8 +68,11 @@ export interface DadosUsuarioResponse {
 }
 
 /**
- * Serviço responsável por toda a lógica de negócio relacionada aos usuários
- * Inclui operações de CRUD e gerenciamento de histórico
+ * Serviço principal de usuários
+ * 
+ * @description
+ * Implementa toda a lógica de negócio relacionada aos usuários,
+ * integrando com MongoDB e serviços de autenticação.
  */
 @Injectable()
 export class UsuariosService {
@@ -49,6 +83,19 @@ export class UsuariosService {
 
   /**
    * Cria um novo usuário no sistema
+   * 
+   * @description
+   * Processo de criação de usuário:
+   * 1. Verifica duplicidade de email
+   * 2. Cria usuário com valores padrão
+   * 3. Salva no banco de dados
+   * 4. Retorna mensagem de sucesso
+   * 
+   * Valores padrão:
+   * - eAdmin: false
+   * - ePremium: false
+   * - Históricos vazios
+   * - Sem foto de perfil
    * 
    * @param createUsuarioDto - Dados do novo usuário
    * @throws ConflictException - Se o email já estiver cadastrado
@@ -78,11 +125,24 @@ export class UsuariosService {
   }
 
   /**
-   * Realiza o login do usuário e gera um token JWT
+   * Realiza o login do usuário
+   * 
+   * @description
+   * Processo de autenticação:
+   * 1. Busca usuário por email
+   * 2. Valida senha usando bcrypt
+   * 3. Gera token JWT
+   * 4. Retorna dados e token
+   * 
+   * Dados retornados:
+   * - Informações do usuário
+   * - Token de acesso
+   * - Tempo de expiração
+   * - Data de geração
    * 
    * @param loginUsuarioDto - Credenciais do usuário
    * @throws UnauthorizedException - Se as credenciais forem inválidas
-   * @returns Dados do usuário e token de autenticação
+   * @returns Dados do usuário e token
    */
   async login(loginUsuarioDto: LoginUsuarioDto) {
     const usuario = await this.usuarioModel.findOne({
@@ -134,10 +194,25 @@ export class UsuariosService {
   }
 
   /**
-   * Busca um usuário pelo ID
+   * Busca um usuário por ID
+   * 
+   * @description
+   * Processo de busca:
+   * 1. Valida formato do ID
+   * 2. Busca no banco de dados
+   * 3. Popula relacionamentos
+   * 4. Retorna dados completos
+   * 
+   * Dados retornados incluem:
+   * - Informações pessoais
+   * - Dashboards associados
+   * - Históricos
+   * - Foto de perfil
+   * 
    * @param id - ID do usuário
-   * @returns Dados do usuário encontrado
+   * @throws BadRequestException - Se o ID for inválido
    * @throws NotFoundException - Se o usuário não for encontrado
+   * @returns Documento do usuário populado
    */
   async findOne(id: string): Promise<UsuarioDocument> {
     if (!id || !isValidObjectId(id)) {
@@ -194,13 +269,25 @@ export class UsuariosService {
   }
 
   /**
-   * Atualiza parcialmente os dados do usuário (nome e/ou email)
+   * Atualiza dados do usuário
+   * 
+   * @description
+   * Processo de atualização:
+   * 1. Valida ID e existência
+   * 2. Verifica duplicidade de email
+   * 3. Atualiza campos fornecidos
+   * 4. Salva alterações
+   * 
+   * Campos atualizáveis:
+   * - Nome do usuário
+   * - Email (com validação)
+   * 
    * @param id - ID do usuário
-   * @param updateUsuarioDto - Dados do usuário a serem atualizados
-   * @returns Usuário atualizado
-   * @throws NotFoundException - Se o usuário não for encontrado
-   * @throws ConflictException - Se o novo email já estiver em uso
+   * @param updateUsuarioDto - Dados a atualizar
    * @throws BadRequestException - Se o ID for inválido
+   * @throws NotFoundException - Se o usuário não existir
+   * @throws ConflictException - Se o email já estiver em uso
+   * @returns Usuário atualizado
    */
   async atualizarUsuario(id: string, updateUsuarioDto: UpdateUsuarioDto): Promise<UsuarioDocument> {
     if (!id || !isValidObjectId(id)) {
@@ -242,15 +329,29 @@ export class UsuariosService {
   }
 
   /**
-   * Faz upload da foto de perfil do usuário
+   * Realiza upload de foto de perfil
+   * 
+   * @description
+   * Processo de upload:
+   * 1. Valida usuário e arquivo
+   * 2. Verifica formato e tamanho
+   * 3. Converte para base64
+   * 4. Salva no perfil
+   * 
+   * Validações:
+   * - Formato: JPG/PNG
+   * - Tamanho máximo: 5MB
+   * - Usuário existente
+   * 
    * @param id - ID do usuário
    * @param file - Arquivo de imagem
+   * @throws BadRequestException - Se arquivo for inválido
+   * @throws NotFoundException - Se usuário não existir
    * @returns Usuário atualizado
-   * @throws NotFoundException - Se o usuário não for encontrado
    */
   async uploadFotoPerfil(id: string, file: Express.Multer.File): Promise<UsuarioDocument> {
     console.log('Iniciando upload de foto para usuário:', id);
-    
+
     if (!id || !isValidObjectId(id)) {
       console.error('ID de usuário inválido:', id);
       throw new BadRequestException('ID de usuário inválido');
@@ -286,10 +387,10 @@ export class UsuariosService {
       // Converter o buffer da imagem para base64
       const base64Image = file.buffer.toString('base64');
       usuario.fotoPerfilBase64 = `data:${file.mimetype};base64,${base64Image}`;
-      
+
       const usuarioAtualizado = await usuario.save();
       console.log('Foto atualizada com sucesso para usuário:', id);
-      
+
       return usuarioAtualizado;
     } catch (error) {
       console.error('Erro ao processar upload de foto:', error);
@@ -321,11 +422,19 @@ export class UsuariosService {
   }
 
   /**
-   * Edita a foto de perfil do usuário
+   * Atualiza foto de perfil existente
+   * 
+   * @description
+   * Similar ao upload, mas para atualização:
+   * 1. Valida usuário e arquivo
+   * 2. Substitui foto existente
+   * 3. Converte e salva
+   * 
    * @param id - ID do usuário
-   * @param file - Nova imagem de perfil
+   * @param file - Nova foto
+   * @throws BadRequestException - Se arquivo for inválido
+   * @throws NotFoundException - Se usuário não existir
    * @returns Usuário atualizado
-   * @throws NotFoundException - Se o usuário não for encontrado
    */
   async editFotoPerfil(id: string, file: Express.Multer.File): Promise<UsuarioDocument> {
     if (!id || !isValidObjectId(id)) {

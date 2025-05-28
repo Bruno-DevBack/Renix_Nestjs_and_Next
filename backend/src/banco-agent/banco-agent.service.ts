@@ -7,16 +7,65 @@ import { TipoInvestimento } from '../investimentos/schemas/investimento.schema';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
+/**
+ * Interface que define a estrutura de uma notícia
+ * @property title - Título da notícia
+ * @property description - Descrição ou conteúdo da notícia
+ */
 interface NewsArticle {
     title: string;
     description: string;
 }
 
+/**
+ * Serviço responsável pela atualização automática de informações bancárias
+ * 
+ * @description
+ * Este serviço implementa um agente automatizado que mantém atualizadas
+ * todas as informações dos bancos cadastrados no sistema. Ele é responsável por:
+ * 
+ * Funcionalidades principais:
+ * - Atualização automática periódica dos dados bancários
+ * - Coleta de taxas e índices do mercado (CDI, IOF, IR)
+ * - Análise de sentimento do mercado através de notícias
+ * - Ajuste dinâmico de rentabilidades baseado em condições de mercado
+ * - Gestão de recursos visuais (logos) dos bancos
+ * 
+ * O serviço utiliza várias fontes de dados:
+ * - APIs externas para taxas e índices
+ * - Web scraping para informações específicas
+ * - Análise de notícias para sentimento de mercado
+ * - Configurações predefinidas para cada banco
+ * 
+ * @example
+ * // Uso do serviço em um controller
+ * @Controller('bancos')
+ * export class BancosController {
+ *   constructor(private bancoAgentService: BancoAgentService) {}
+ * 
+ *   @Post('atualizar')
+ *   async atualizarBancos() {
+ *     await this.bancoAgentService.atualizarTodosBancosAgora();
+ *   }
+ * }
+ */
 @Injectable()
 export class BancoAgentService {
     private readonly logger = new Logger(BancoAgentService.name);
 
-    // Configuração completa dos bancos e seus investimentos
+    /**
+     * Configuração detalhada dos bancos e seus investimentos disponíveis
+     * 
+     * @description
+     * Define as características base e investimentos disponíveis para cada banco:
+     * - Informações básicas (URL, taxas, mínimos)
+     * - Tipos de investimentos oferecidos
+     * - Características específicas de cada produto
+     * - Parâmetros de risco e rentabilidade
+     * 
+     * Esta configuração serve como base para a atualização dinâmica
+     * dos dados, sendo ajustada conforme condições de mercado.
+     */
     private readonly bancosConfig = {
         'Nubank': {
             url: 'https://nubank.com.br',
@@ -323,13 +372,29 @@ export class BancoAgentService {
         }
     };
 
+    /**
+     * Construtor do serviço
+     * @param bancoModel Modelo Mongoose para operações com bancos
+     */
     constructor(
         @InjectModel(Banco.name) private bancoModel: Model<BancoDocument>
     ) {
-        // Inicializar bancos ao iniciar o serviço
-        this.inicializarBancos();
+        this.inicializarBancos().catch(err => {
+            this.logger.error('Erro ao inicializar bancos:', err);
+        });
     }
 
+    /**
+     * Inicializa os bancos no banco de dados
+     * 
+     * @description
+     * Este método é executado na inicialização do serviço e garante que:
+     * - Todos os bancos configurados existam no banco de dados
+     * - As informações básicas estejam preenchidas
+     * - Os logos estejam atualizados
+     * 
+     * @private
+     */
     private async inicializarBancos() {
         try {
             for (const [nomeBanco, config] of Object.entries(this.bancosConfig)) {
@@ -362,7 +427,20 @@ export class BancoAgentService {
         }
     }
 
-    @Cron(CronExpression.EVERY_WEEK)
+    /**
+     * Atualiza periodicamente as informações dos bancos
+     * 
+     * @description
+     * Método executado automaticamente todos os dias às 00:00
+     * para atualizar todas as informações bancárias. O processo inclui:
+     * 1. Busca de taxas atualizadas (CDI, IOF, IR)
+     * 2. Análise do sentimento do mercado
+     * 3. Atualização de rentabilidades
+     * 4. Atualização de recursos visuais
+     * 
+     * @throws {Error} Se houver falha na atualização
+     */
+    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
     async atualizarInformacoesBancos() {
         this.logger.log('Iniciando atualização semanal das informações dos bancos');
 
@@ -413,6 +491,20 @@ export class BancoAgentService {
         }
     }
 
+    /**
+     * Atualiza os investimentos disponíveis de um banco
+     * 
+     * @description
+     * Ajusta as características dos investimentos com base em:
+     * - Taxa CDI atual
+     * - Sentimento do mercado
+     * - Configurações base do banco
+     * 
+     * @param banco Documento do banco a ser atualizado
+     * @param cdiAtual Taxa CDI atual
+     * @param sentimentoMercado Índice de sentimento (-1 a 1)
+     * @private
+     */
     private atualizarInvestimentosDisponiveis(banco: BancoDocument, cdiAtual: number, sentimentoMercado: number) {
         if (!banco.investimentos_disponiveis) return;
 
@@ -435,12 +527,36 @@ export class BancoAgentService {
         }
     }
 
+    /**
+     * Ajusta a rentabilidade de investimentos de renda fixa
+     * 
+     * @description
+     * Calcula a nova rentabilidade baseada no sentimento do mercado:
+     * - Sentimento positivo aumenta a rentabilidade
+     * - Sentimento negativo diminui a rentabilidade
+     * 
+     * @param percentualBase Percentual base de rentabilidade
+     * @param sentimentoMercado Índice de sentimento (-1 a 1)
+     * @returns Novo percentual de rentabilidade
+     * @private
+     */
     private ajustarRentabilidadeRendaFixa(percentualBase: number, sentimentoMercado: number): number {
         // Ajusta o percentual do CDI baseado no sentimento do mercado
         const ajuste = sentimentoMercado * 5; // Máximo de 5% de variação
         return Math.max(90, Math.min(130, percentualBase + ajuste));
     }
 
+    /**
+     * Ajusta parâmetros de investimentos de renda variável
+     * 
+     * @description
+     * Modifica características como risco e rentabilidade esperada
+     * com base no sentimento atual do mercado
+     * 
+     * @param investimento Configuração do investimento
+     * @param sentimentoMercado Índice de sentimento (-1 a 1)
+     * @private
+     */
     private ajustarInvestimentoVariavel(investimento: any, sentimentoMercado: number) {
         // Ajusta risco e potencial retorno baseado no sentimento do mercado
         investimento.caracteristicas.risco = Math.max(1, Math.min(5,
@@ -448,6 +564,20 @@ export class BancoAgentService {
         ));
     }
 
+    /**
+     * Busca dados específicos de um banco via web scraping
+     * 
+     * @description
+     * Coleta informações atualizadas do site oficial do banco:
+     * - Taxas praticadas
+     * - Produtos disponíveis
+     * - Informações institucionais
+     * 
+     * @param nomeBanco Nome do banco para busca
+     * @returns Dados coletados do banco
+     * @throws {Error} Se houver falha na coleta
+     * @private
+     */
     private async buscarDadosEspecificosBanco(nomeBanco: string): Promise<any> {
         try {
             const fonte = this.bancosConfig[nomeBanco];
@@ -469,6 +599,18 @@ export class BancoAgentService {
         }
     }
 
+    /**
+     * Processa os dados coletados de um banco específico
+     * 
+     * @description
+     * Analisa e estrutura os dados coletados via web scraping,
+     * adequando-os ao formato necessário para atualização
+     * 
+     * @param nomeBanco Nome do banco processado
+     * @param dados Dados brutos coletados
+     * @returns Dados processados e estruturados
+     * @private
+     */
     private processarDadosBanco(nomeBanco: string, dados: string): any {
         // Implementar lógica específica de processamento para cada banco
         switch (nomeBanco) {
@@ -493,6 +635,17 @@ export class BancoAgentService {
         return {};
     }
 
+    /**
+     * Busca a taxa CDI atual
+     * 
+     * @description
+     * Obtém a taxa CDI mais recente de fonte confiável
+     * para uso nos cálculos de rentabilidade
+     * 
+     * @returns Taxa CDI em percentual
+     * @throws {Error} Se não conseguir obter a taxa
+     * @private
+     */
     private async buscarTaxaCDI(): Promise<number> {
         try {
             const response = await axios.get('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/1');
@@ -503,6 +656,17 @@ export class BancoAgentService {
         }
     }
 
+    /**
+     * Busca informações atualizadas do IOF
+     * 
+     * @description
+     * Obtém as taxas atuais de IOF aplicáveis aos
+     * investimentos, incluindo a taxa diária
+     * 
+     * @returns Objeto com taxas de IOF
+     * @throws {Error} Se não conseguir obter as taxas
+     * @private
+     */
     private async buscarInformacoesIOF(): Promise<{ taxaDiaria: number }> {
         try {
             // Tentar buscar de fonte oficial
@@ -519,6 +683,17 @@ export class BancoAgentService {
         }
     }
 
+    /**
+     * Busca alíquotas atualizadas do Imposto de Renda
+     * 
+     * @description
+     * Obtém as alíquotas de IR aplicáveis aos investimentos
+     * conforme o prazo de aplicação
+     * 
+     * @returns Objeto com alíquotas por prazo
+     * @throws {Error} Se não conseguir obter as alíquotas
+     * @private
+     */
     private async buscarInformacoesIR(): Promise<{
         ate180: number;
         ate360: number;
@@ -546,6 +721,22 @@ export class BancoAgentService {
         }
     }
 
+    /**
+     * Calcula o fator de variação para ajuste de rentabilidade
+     * 
+     * @description
+     * Determina quanto os valores base devem ser ajustados
+     * considerando:
+     * - Dados específicos do banco
+     * - Sentimento do mercado
+     * - Histórico de performance
+     * 
+     * @param nomeBanco Nome do banco
+     * @param dadosBanco Dados coletados do banco
+     * @param sentimentoMercado Índice de sentimento
+     * @returns Fator de ajuste
+     * @private
+     */
     private calcularFatorVariacao(
         nomeBanco: string,
         dadosBanco: any,
@@ -567,6 +758,17 @@ export class BancoAgentService {
         return Math.max(0.9, Math.min(1.1, fatorBase));
     }
 
+    /**
+     * Analisa notícias recentes sobre um banco
+     * 
+     * @description
+     * Coleta e analisa notícias recentes para determinar
+     * o sentimento do mercado em relação ao banco
+     * 
+     * @param nomeBanco Nome do banco
+     * @returns Índice de sentimento (-1 a 1)
+     * @private
+     */
     private async analisarNoticiasRecentes(nomeBanco: string): Promise<number> {
         try {
             const noticias = await this.buscarNoticias(nomeBanco);
@@ -590,6 +792,17 @@ export class BancoAgentService {
         }
     }
 
+    /**
+     * Busca notícias relacionadas a um banco
+     * 
+     * @description
+     * Coleta notícias recentes de diversas fontes
+     * para análise de sentimento
+     * 
+     * @param nomeBanco Nome do banco
+     * @returns Lista de URLs de notícias
+     * @private
+     */
     private async buscarNoticias(nomeBanco: string): Promise<string[]> {
         try {
             // Em desenvolvimento, retornar notícias simuladas
@@ -616,12 +829,34 @@ export class BancoAgentService {
         }
     }
 
+    /**
+     * Analisa o sentimento de um texto
+     * 
+     * @description
+     * Processa o texto para determinar se o sentimento
+     * é positivo, negativo ou neutro
+     * 
+     * @param texto Texto para análise
+     * @returns Índice de sentimento (-1 a 1)
+     * @private
+     */
     private async analisarSentimento(texto: string): Promise<number> {
         // Em desenvolvimento, gerar um sentimento aleatório
         // -1 (muito negativo) até 1 (muito positivo)
         return Math.random() * 2 - 1;
     }
 
+    /**
+     * Busca o logo atualizado de um banco
+     * 
+     * @description
+     * Procura e baixa o logo mais recente do banco
+     * de fontes oficiais ou confiáveis
+     * 
+     * @param nomeBanco Nome do banco
+     * @returns URL do logo encontrado
+     * @private
+     */
     private async buscarLogoNaWeb(nomeBanco: string): Promise<string> {
         try {
             // Usando Clearbit Logo API (gratuito)
@@ -665,6 +900,16 @@ export class BancoAgentService {
         }
     }
 
+    /**
+     * Salva o logo de um banco
+     * 
+     * @description
+     * Armazena o logo atualizado do banco no
+     * sistema de arquivos ou banco de dados
+     * 
+     * @param banco Documento do banco
+     * @private
+     */
     private async salvarLogoBanco(banco: BancoDocument): Promise<void> {
         try {
             const base64Image = await this.buscarLogoNaWeb(banco.nome_banco);
@@ -675,6 +920,16 @@ export class BancoAgentService {
         }
     }
 
+    /**
+     * Atualiza as informações de um banco específico
+     * 
+     * @description
+     * Executa o processo completo de atualização para
+     * um banco, incluindo dados, investimentos e recursos
+     * 
+     * @param banco Documento do banco
+     * @throws {Error} Se houver falha na atualização
+     */
     async atualizarInformacoesBanco(banco: BancoDocument): Promise<void> {
         try {
             // Se o banco não tem logo, buscar e salvar
@@ -689,7 +944,15 @@ export class BancoAgentService {
         }
     }
 
-    // Método público para forçar atualização imediata
+    /**
+     * Força a atualização imediata de todos os bancos
+     * 
+     * @description
+     * Inicia manualmente o processo de atualização para
+     * todos os bancos cadastrados no sistema
+     * 
+     * @throws {Error} Se houver falha na atualização
+     */
     async atualizarTodosBancosAgora(): Promise<void> {
         this.logger.log('Iniciando atualização manual de todos os bancos');
 

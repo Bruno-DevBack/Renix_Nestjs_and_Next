@@ -6,24 +6,50 @@ import { BancoAgentController } from './banco-agent.controller';
 import { Banco, BancoSchema } from '../bancos/schemas/banco.schema';
 
 /**
- * Módulo responsável por gerenciar o agente automatizado de atualização de bancos
+ * Módulo responsável pelo agente automatizado de atualização de bancos
  * 
- * Este módulo:
- * - Configura o agendamento de tarefas para atualização automática dos bancos
- * - Gerencia a coleta e atualização de informações bancárias
- * - Mantém os dados dos bancos sempre atualizados
- * - Processa taxas, rendimentos e informações de mercado
- * - Atualiza automaticamente logos e informações visuais dos bancos
+ * @description
+ * Este módulo implementa um agente automatizado que gerencia e mantém
+ * atualizadas as informações bancárias no sistema. Suas responsabilidades incluem:
+ * 
+ * Funcionalidades principais:
+ * - Agendamento e execução de tarefas automáticas
+ * - Coleta periódica de informações bancárias
+ * - Atualização de taxas e rendimentos
+ * - Sincronização de dados com fontes externas
+ * - Manutenção de logos e recursos visuais
+ * 
+ * Componentes:
+ * - ScheduleModule: Gerenciamento de tarefas agendadas
+ * - MongooseModule: Persistência de dados dos bancos
+ * - BancoAgentService: Lógica de atualização
+ * - BancoAgentController: Endpoints de controle
+ * 
+ * @example
+ * // Uso do módulo em outro módulo da aplicação
+ * @Module({
+ *   imports: [BancoAgentModule],
+ *   // ... outras configurações
+ * })
+ * export class AppModule {}
  */
 @Module({
     imports: [
-        // Configura o módulo de agendamento de tarefas
+        // Configura o módulo de agendamento para tarefas automáticas
         ScheduleModule.forRoot(),
-        // Registra o modelo de Banco no Mongoose
+
+        // Registra o modelo de Banco no MongoDB via Mongoose
+        // Permite operações CRUD na coleção de bancos
         MongooseModule.forFeature([{ name: Banco.name, schema: BancoSchema }])
     ],
-    controllers: [BancoAgentController],  // Controller para operações manuais do agente
-    providers: [BancoAgentService],       // Service que implementa a lógica do agente
-    exports: [BancoAgentService]          // Exporta o service para uso em outros módulos
+    controllers: [
+        BancoAgentController  // Controller para operações manuais e monitoramento do agente
+    ],
+    providers: [
+        BancoAgentService    // Serviço que implementa a lógica de atualização automática
+    ],
+    exports: [
+        BancoAgentService    // Permite que outros módulos utilizem o serviço de atualização
+    ]
 })
 export class BancoAgentModule { } 

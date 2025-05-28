@@ -7,26 +7,52 @@ import { PdfService } from './pdf.service';
 import { AuthModule } from '../auth/auth.module';
 
 /**
- * Módulo responsável por gerenciar os dashboards de investimentos
+ * Módulo central para gerenciamento de dashboards de investimentos
  * 
- * Este módulo:
- * - Gerencia a criação e visualização de dashboards
- * - Processa dados de investimentos para visualização
- * - Gera relatórios em PDF dos dashboards
- * - Calcula métricas e indicadores de performance
- * - Fornece análises comparativas de investimentos
- * - Mantém o histórico de dashboards por usuário
+ * @description
+ * Este módulo implementa toda a infraestrutura necessária para
+ * gerenciar dashboards de análise de investimentos. Inclui:
+ * 
+ * Funcionalidades principais:
+ * - Criação e gestão de dashboards personalizados
+ * - Análise de performance de investimentos
+ * - Geração de relatórios em PDF
+ * - Cálculo de métricas e indicadores
+ * - Comparação entre investimentos
+ * - Histórico de análises
+ * 
+ * Integrações:
+ * - MongoDB via Mongoose para persistência
+ * - Autenticação via AuthModule
+ * - Geração de PDFs
+ * - APIs de dados financeiros
+ * 
+ * @example
+ * // Importação e uso em outros módulos
+ * @Module({
+ *   imports: [DashboardModule],
+ *   // ... outras configurações
+ * })
+ * export class AppModule {}
  */
 @Module({
   imports: [
-    // Registra o modelo de Dashboard no Mongoose
+    // Configura o modelo Dashboard no MongoDB via Mongoose
+    // Permite operações CRUD na coleção de dashboards
     MongooseModule.forFeature([{ name: Dashboard.name, schema: DashboardSchema }]),
+
+    // Integra autenticação e autorização
     AuthModule
   ],
-  controllers: [DashboardController], // Controller que gerencia as rotas de dashboard
+  controllers: [
+    DashboardController  // Gerencia endpoints REST para operações com dashboards
+  ],
   providers: [
-    DashboardService,               // Service principal de dashboard
-    PdfService                      // Service para geração de PDFs
+    DashboardService,    // Implementa a lógica de negócio dos dashboards
+    PdfService          // Fornece funcionalidades de geração de PDFs
+  ],
+  exports: [
+    DashboardService    // Permite que outros módulos utilizem o serviço de dashboards
   ]
 })
 export class DashboardModule { } 

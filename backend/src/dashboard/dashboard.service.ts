@@ -1,3 +1,36 @@
+/**
+ * Serviço responsável pela lógica de negócio dos dashboards
+ * 
+ * @description
+ * Este serviço implementa todas as operações relacionadas aos
+ * dashboards de investimentos, incluindo:
+ * 
+ * Funcionalidades principais:
+ * - Busca e listagem de dashboards
+ * - Cálculos de rendimentos e indicadores
+ * - Geração de relatórios em PDF
+ * - Análise de performance
+ * - Gestão de dados do usuário
+ * 
+ * O serviço utiliza:
+ * - MongoDB via Mongoose para persistência
+ * - PdfService para geração de relatórios
+ * - Cálculos financeiros complexos
+ * - Logging detalhado para debug
+ * 
+ * @example
+ * // Exemplo de uso em um controller
+ * @Controller('dashboard')
+ * export class DashboardController {
+ *   constructor(private dashboardService: DashboardService) {}
+ * 
+ *   @Get()
+ *   async findAll() {
+ *     return this.dashboardService.findAll();
+ *   }
+ * }
+ */
+
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
@@ -6,11 +39,27 @@ import { PdfService } from './pdf.service';
 
 @Injectable()
 export class DashboardService {
+  /**
+   * Construtor do serviço de dashboard
+   * 
+   * @param dashboardModel - Modelo Mongoose para operações com dashboards
+   * @param pdfService - Serviço para geração de PDFs
+   */
   constructor(
     @InjectModel(Dashboard.name) private dashboardModel: Model<DashboardDocument>,
     private pdfService: PdfService
   ) { }
 
+  /**
+   * Lista todos os dashboards cadastrados
+   * 
+   * @description
+   * Busca e retorna todos os dashboards existentes no banco de dados.
+   * Inclui logging detalhado para debug.
+   * 
+   * @returns Promise<DashboardDocument[]> Lista de dashboards
+   * @throws {Error} Se houver erro na consulta ao banco
+   */
   async findAll(): Promise<DashboardDocument[]> {
     console.log('Debug - Buscando todos os dashboards');
     try {
@@ -29,6 +78,17 @@ export class DashboardService {
     }
   }
 
+  /**
+   * Busca um dashboard específico por ID
+   * 
+   * @description
+   * Localiza e retorna um dashboard pelo seu ID único.
+   * Valida o formato do ID antes da busca.
+   * 
+   * @param id - ID único do dashboard
+   * @returns Promise<DashboardDocument | null> Dashboard encontrado ou null
+   * @throws {BadRequestException} Se o ID for inválido
+   */
   async findOne(id: string): Promise<DashboardDocument | null> {
     try {
       console.log('Debug - Buscando dashboard por ID:', id);
@@ -66,6 +126,17 @@ export class DashboardService {
     }
   }
 
+  /**
+   * Busca dashboards de um usuário específico
+   * 
+   * @description
+   * Retorna todos os dashboards associados a um usuário.
+   * Valida o formato do ID do usuário antes da busca.
+   * 
+   * @param usuarioId - ID único do usuário
+   * @returns Promise<DashboardDocument[]> Lista de dashboards do usuário
+   * @throws {BadRequestException} Se o ID do usuário for inválido
+   */
   async findByUsuario(usuarioId: string): Promise<DashboardDocument[]> {
     console.log('Debug - Buscando dashboards do usuário:', usuarioId);
     try {
@@ -95,6 +166,20 @@ export class DashboardService {
     }
   }
 
+  /**
+   * Gera um relatório PDF do dashboard
+   * 
+   * @description
+   * Cria um relatório PDF detalhado do dashboard, incluindo:
+   * - Dados do investimento
+   * - Rendimentos e taxas
+   * - Indicadores de mercado
+   * - Gráficos e análises
+   * 
+   * @param id - ID único do dashboard
+   * @returns Promise<Buffer> Buffer contendo o PDF gerado
+   * @throws {NotFoundException} Se o dashboard não for encontrado
+   */
   async gerarPdf(id: string): Promise<Buffer> {
     try {
       console.log('Debug - Buscando dashboard para PDF:', id);
@@ -144,27 +229,67 @@ export class DashboardService {
     }
   }
 
+  /**
+   * Calcula o valor total investido
+   * 
+   * @description
+   * Soma todos os valores investidos nos diferentes
+   * investimentos do dashboard.
+   * 
+   * @param dashboard - Dashboard para cálculo
+   * @returns number Valor total investido
+   * @private
+   */
   private calcularTotalInvestido(dashboard: Dashboard): number {
-    // Implementar lógica de cálculo do total investido
     return dashboard.investimentos?.reduce((total, inv) => total + inv.valor, 0) || 0;
   }
 
+  /**
+   * Calcula o rendimento médio dos investimentos
+   * 
+   * @description
+   * Calcula a média dos rendimentos de todos os
+   * investimentos do dashboard.
+   * 
+   * @param dashboard - Dashboard para cálculo
+   * @returns number Rendimento médio
+   * @private
+   */
   private calcularRendimentoMedio(dashboard: Dashboard): number {
-    // Implementar lógica de cálculo do rendimento médio
     const rendimentos = dashboard.investimentos?.map(inv => inv.rendimento) || [];
     if (rendimentos.length === 0) return 0;
     return rendimentos.reduce((a, b) => a + b) / rendimentos.length;
   }
 
+  /**
+   * Calcula o risco médio dos investimentos
+   * 
+   * @description
+   * Calcula a média dos níveis de risco de todos os
+   * investimentos do dashboard.
+   * 
+   * @param dashboard - Dashboard para cálculo
+   * @returns number Risco médio (arredondado)
+   * @private
+   */
   private calcularRiscoMedio(dashboard: Dashboard): number {
-    // Implementar lógica de cálculo do risco médio
     const riscos = dashboard.investimentos?.map(inv => inv.risco) || [];
     if (riscos.length === 0) return 0;
     return Math.round(riscos.reduce((a, b) => a + b) / riscos.length);
   }
 
+  /**
+   * Calcula a distribuição dos investimentos
+   * 
+   * @description
+   * Agrupa os investimentos por tipo e calcula
+   * o valor total em cada categoria.
+   * 
+   * @param dashboard - Dashboard para cálculo
+   * @returns Array de objetos com tipo e valor
+   * @private
+   */
   private calcularDistribuicao(dashboard: Dashboard): any[] {
-    // Implementar lógica de cálculo da distribuição dos investimentos
     const distribuicao = {};
     dashboard.investimentos?.forEach(inv => {
       distribuicao[inv.tipo] = (distribuicao[inv.tipo] || 0) + inv.valor;
@@ -172,8 +297,18 @@ export class DashboardService {
     return Object.entries(distribuicao).map(([tipo, valor]) => ({ tipo, valor }));
   }
 
+  /**
+   * Calcula os rendimentos por banco
+   * 
+   * @description
+   * Agrupa os rendimentos por banco e calcula
+   * o valor total rendido em cada instituição.
+   * 
+   * @param dashboard - Dashboard para cálculo
+   * @returns Array de objetos com banco e valor
+   * @private
+   */
   private calcularRendimentos(dashboard: Dashboard): any[] {
-    // Implementar lógica de cálculo dos rendimentos por banco
     const rendimentos = {};
     dashboard.investimentos?.forEach(inv => {
       rendimentos[inv.banco] = (rendimentos[inv.banco] || 0) + inv.rendimento;
@@ -181,8 +316,18 @@ export class DashboardService {
     return Object.entries(rendimentos).map(([banco, valor]) => ({ banco, valor }));
   }
 
+  /**
+   * Gera comparativo detalhado dos investimentos
+   * 
+   * @description
+   * Cria um comparativo entre os investimentos,
+   * incluindo dados de rendimento, risco e liquidez.
+   * 
+   * @param dashboard - Dashboard para análise
+   * @returns Array com comparativo detalhado
+   * @private
+   */
   private gerarComparativo(dashboard: Dashboard): any[] {
-    // Implementar lógica de geração do comparativo detalhado
     return dashboard.investimentos?.map(inv => ({
       banco: inv.banco,
       investimento: inv.tipo,
@@ -192,6 +337,17 @@ export class DashboardService {
     })) || [];
   }
 
+  /**
+   * Traduz o código de liquidez para formato legível
+   * 
+   * @description
+   * Converte o código numérico de liquidez para
+   * uma string no formato "D+X".
+   * 
+   * @param liquidez - Código de liquidez (1-4)
+   * @returns string Liquidez em formato legível
+   * @private
+   */
   private traduzirLiquidez(liquidez: number): string {
     switch (liquidez) {
       case 1: return 'D+0';
@@ -202,6 +358,17 @@ export class DashboardService {
     }
   }
 
+  /**
+   * Remove um dashboard
+   * 
+   * @description
+   * Exclui permanentemente um dashboard do banco de dados.
+   * Valida o formato do ID antes da exclusão.
+   * 
+   * @param id - ID único do dashboard
+   * @throws {BadRequestException} Se o ID for inválido
+   * @throws {NotFoundException} Se o dashboard não for encontrado
+   */
   async remove(id: string): Promise<void> {
     console.log('Debug - Removendo dashboard:', id);
     try {

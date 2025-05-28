@@ -1,13 +1,30 @@
 /**
  * Arquivo principal da aplicação NestJS
- * Responsável pela configuração inicial e bootstrap da aplicação
  * 
- * Este arquivo configura:
- * - CORS para comunicação com o frontend
- * - Validação global de dados
- * - Documentação Swagger
- * - Interceptors e filtros globais
+ * @description
+ * Este arquivo é o ponto de entrada da aplicação e configura:
+ * 
+ * Segurança:
+ * - CORS para comunicação segura com o frontend
+ * - Validação global de dados via class-validator
+ * - Filtros globais para tratamento de exceções
+ * - Interceptors para transformação de respostas
+ * 
+ * Documentação:
+ * - Swagger/OpenAPI para documentação da API
+ * - Descrição detalhada dos endpoints
+ * - Exemplos de uso e payloads
+ * - Autenticação e autorização
+ * 
+ * Configurações:
  * - Prefixo global para todas as rotas
+ * - Headers de segurança
+ * - Validação de dados
+ * - Transformação de respostas
+ * 
+ * @example
+ * // Exemplo de uso da API documentada
+ * http://localhost:3000/api/docs
  */
 
 import { NestFactory } from '@nestjs/core';
@@ -23,11 +40,19 @@ async function bootstrap() {
 
   /**
    * Configuração do CORS para permitir requisições do frontend
-   * Em ambiente de desenvolvimento, aceita requisições de qualquer origem
-   * Em produção, isso deve ser restrito aos domínios permitidos
+   * 
+   * @description
+   * Em ambiente de desenvolvimento, aceita requisições de qualquer origem.
+   * Em produção, isso deve ser restrito aos domínios permitidos.
+   * 
+   * Configurações:
+   * - origin: true (permite todas as origens em dev)
+   * - credentials: true (permite envio de cookies)
+   * - methods: métodos HTTP permitidos
+   * - headers: headers permitidos
    */
   app.enableCors({
-    origin: true, // Permite todas as origens em desenvolvimento
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
@@ -36,9 +61,12 @@ async function bootstrap() {
 
   /**
    * Configuração da validação global usando class-validator
-   * - transform: converte automaticamente os dados para os tipos corretos
-   * - whitelist: remove propriedades não decoradas com validadores
-   * - forbidNonWhitelisted: lança erro se houver propriedades não permitidas
+   * 
+   * @description
+   * Configura a validação automática de todas as requisições:
+   * - transform: converte dados para os tipos corretos
+   * - whitelist: remove propriedades não decoradas
+   * - forbidNonWhitelisted: erro para props não permitidas
    */
   app.useGlobalPipes(new ValidationPipe({
     transform: true,
@@ -46,7 +74,17 @@ async function bootstrap() {
     forbidNonWhitelisted: true,
   }));
 
-  // Configuração do Swagger
+  /**
+   * Configuração do Swagger/OpenAPI
+   * 
+   * @description
+   * Configura a documentação interativa da API com:
+   * - Título e descrição da API
+   * - Detalhamento dos módulos
+   * - Exemplos de uso
+   * - Autenticação necessária
+   * - Respostas esperadas
+   */
   const config = new DocumentBuilder()
     .setTitle('Renix API')
     .setDescription(`
@@ -118,54 +156,22 @@ async function bootstrap() {
         "email_usuario": "joao.novo@email.com"
       }
       \`\`\`
-
-      ### 4. Adição de Investimento ao Histórico
-      \`\`\`json
-      POST /api/usuarios/{id}/investimentos/historico
-      {
-        "tipo": "Renda Fixa",
-        "valor": 1000.00,
-        "banco": "Banco XYZ",
-        "rendimento": 5.5
-      }
-      \`\`\`
-
-      ### 5. Geração de Dashboard PDF
-      \`\`\`
-      GET /api/dashboard/{id}/pdf
-      \`\`\`
-
-      ### 6. Atualização de Bancos
-      \`\`\`
-      POST /api/banco-agent/atualizar
-      \`\`\`
     `)
     .setVersion('1.0')
-    .addTag('Usuários', 'Operações relacionadas a usuários')
-    .addTag('Bancos', 'Operações relacionadas a bancos')
-    .addTag('Investimentos', 'Operações relacionadas a investimentos')
-    .addTag('Dashboard', 'Operações relacionadas a dashboards')
-    .addTag('Banco Agent', 'Operações de atualização automática de bancos')
     .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('api/docs', app, document);
 
-  /**
-   * Configuração global da aplicação
-   * - Prefixo 'api' em todas as rotas
-   * - Filtro global para tratamento de exceções HTTP
-   * - Interceptor para transformação padronizada das respostas
-   */
-  app.setGlobalPrefix('api');
+  // Adiciona filtro global para tratamento de exceções
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Adiciona interceptor global para transformação de respostas
   app.useGlobalInterceptors(new TransformInterceptor());
 
   // Inicia o servidor na porta 3333
-  const port = 3333;
-  await app.listen(port);
-  console.log(`Aplicação rodando na porta ${port}`);
+  await app.listen(3333);
 }
 
 bootstrap();

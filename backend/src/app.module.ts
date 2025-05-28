@@ -1,3 +1,41 @@
+/**
+ * Módulo principal da aplicação NestJS
+ * 
+ * @description
+ * Este é o módulo raiz que configura e integra todos os componentes
+ * da aplicação. Suas responsabilidades incluem:
+ * 
+ * Configurações:
+ * - Variáveis de ambiente (.env)
+ * - Conexão com MongoDB
+ * - Rate limiting global
+ * - Importação de módulos
+ * 
+ * Módulos integrados:
+ * - AuthModule: Autenticação e autorização
+ * - BancosModule: Gestão de bancos e instituições
+ * - UsuariosModule: Gestão de usuários
+ * - InvestimentosModule: Gestão de investimentos
+ * - DashboardModule: Análise e visualização
+ * - BancoAgentModule: Atualização automática
+ * 
+ * Configurações de banco de dados:
+ * - MongoDB via Mongoose
+ * - Conexão assíncrona
+ * - URI configurável via env
+ * 
+ * Proteção da API:
+ * - Rate limiting configurável
+ * - TTL e limites via env
+ * - Proteção contra ataques
+ * 
+ * @example
+ * // Exemplo de configuração no .env
+ * MONGODB_URI=mongodb://localhost:27017/renix
+ * RATE_LIMIT_TTL=60
+ * RATE_LIMIT_LIMIT=10
+ */
+
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -11,10 +49,13 @@ import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
+    // Configuração global de variáveis de ambiente
     ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
+      isGlobal: true,      // Disponível em toda a aplicação
+      envFilePath: '.env', // Arquivo de configuração
     }),
+
+    // Configuração da conexão com MongoDB
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -22,22 +63,26 @@ import { AuthModule } from './auth/auth.module';
       }),
       inject: [ConfigService],
     }),
+
+    // Configuração do rate limiting global
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService): Promise<ThrottlerModuleOptions> => ({
         throttlers: [{
-          ttl: configService.get<number>('RATE_LIMIT_TTL') || 60,
-          limit: configService.get<number>('RATE_LIMIT_LIMIT') || 10,
+          ttl: configService.get<number>('RATE_LIMIT_TTL') || 60,    // Tempo de vida do limite
+          limit: configService.get<number>('RATE_LIMIT_LIMIT') || 10, // Requisições permitidas
         }]
       }),
       inject: [ConfigService],
     }),
-    AuthModule,
-    BancosModule,
-    UsuariosModule,
-    InvestimentosModule,
-    DashboardModule,
-    BancoAgentModule,
+
+    // Módulos da aplicação
+    AuthModule,           // Autenticação e autorização
+    BancosModule,        // Gestão de bancos
+    UsuariosModule,      // Gestão de usuários
+    InvestimentosModule, // Gestão de investimentos
+    DashboardModule,     // Análise e visualização
+    BancoAgentModule,    // Atualização automática
   ],
 })
 export class AppModule { }

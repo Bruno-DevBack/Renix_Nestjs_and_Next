@@ -1,17 +1,54 @@
 import { Injectable } from '@nestjs/common';
 import { TipoInvestimento, CaracteristicasInvestimento } from '../schemas/investimento.schema';
 
+/**
+ * Interface que define o resultado dos cálculos de investimento
+ * 
+ * @description
+ * Estrutura os valores calculados para um investimento,
+ * incluindo rendimentos brutos e líquidos, impostos e projeções.
+ */
 interface ResultadoCalculo {
-  rendimentoBruto: number;
-  valorLiquido: number;
-  valorIOF: number;
-  valorImpostoRenda: number;
-  percentualRendimento: number;
-  valorEstimado: number;
+  rendimentoBruto: number;      // Valor bruto do rendimento
+  valorLiquido: number;         // Valor após impostos e taxas
+  valorIOF: number;             // Valor do IOF
+  valorImpostoRenda: number;    // Valor do IR
+  percentualRendimento: number; // Rendimento em percentual
+  valorEstimado: number;        // Projeção futura
 }
 
+/**
+ * Serviço responsável pelos cálculos financeiros dos investimentos
+ * 
+ * @description
+ * Implementa os algoritmos de cálculo para diferentes tipos de investimentos:
+ * - Renda Fixa (CDB, LCI, LCA)
+ * - Tesouro Direto (Selic, IPCA, Prefixado)
+ * - Poupança
+ * - Fundos de Investimento
+ * 
+ * Realiza cálculos de:
+ * - Rendimentos brutos e líquidos
+ * - Impostos (IR e IOF)
+ * - Taxas (administração e performance)
+ * - Projeções e estimativas
+ */
 @Injectable()
 export class CalculoInvestimentoService {
+  /**
+   * Calcula o rendimento de um investimento
+   * 
+   * @description
+   * Método principal que coordena o cálculo do rendimento
+   * baseado no tipo de investimento e suas características.
+   * 
+   * @param tipoInvestimento - Tipo do investimento (CDB, LCI, etc)
+   * @param caracteristicas - Características específicas do investimento
+   * @param valorInvestimento - Valor inicial investido
+   * @param diasCorridos - Quantidade de dias desde o início
+   * @param cdi - Taxa CDI atual
+   * @returns Objeto com todos os valores calculados
+   */
   calcularRendimento(
     tipoInvestimento: TipoInvestimento,
     caracteristicas: CaracteristicasInvestimento,
@@ -146,6 +183,20 @@ export class CalculoInvestimentoService {
     return valor * Math.pow(1 + rendimentoMensal, mesesDecorridos);
   }
 
+  /**
+   * Calcula o rendimento de investimentos em fundos
+   * 
+   * @description
+   * Realiza o cálculo específico para fundos de investimento,
+   * considerando taxas de administração e performance.
+   * 
+   * @param valor - Valor investido
+   * @param rentabilidadeAnual - Rentabilidade anual esperada
+   * @param taxaAdministracao - Taxa de administração do fundo
+   * @param taxaPerformance - Taxa de performance do fundo
+   * @param dias - Dias corridos do investimento
+   * @returns Valor bruto do rendimento
+   */
   private calcularFundos(
     valor: number,
     rentabilidadeAnual: number,
@@ -155,10 +206,10 @@ export class CalculoInvestimentoService {
   ): number {
     const taxaDiaria = Math.pow(1 + rentabilidadeAnual / 100, 1 / 365) - 1;
     const rendimentoBruto = valor * Math.pow(1 + taxaDiaria, dias);
-    
+
     // Desconta taxa de administração
     const custoAdministracao = (rendimentoBruto - valor) * (taxaAdministracao / 100);
-    
+
     // Calcula taxa de performance se houver rendimento acima do benchmark
     const benchmark = 0.02; // 2% como exemplo, pode ser parametrizado
     let custoPerformance = 0;

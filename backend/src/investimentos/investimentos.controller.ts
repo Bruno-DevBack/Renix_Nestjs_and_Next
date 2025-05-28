@@ -1,9 +1,26 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Delete, 
-  Body, 
+/**
+ * Controller responsável pelas rotas de investimentos
+ * 
+ * @description
+ * Implementa os endpoints REST para:
+ * - Listagem de investimentos
+ * - Criação de novos investimentos
+ * - Busca de investimentos específicos
+ * - Remoção de investimentos
+ * 
+ * Características:
+ * - Proteção por autenticação JWT
+ * - Rate limiting para proteção contra abusos
+ * - Documentação Swagger
+ * - Logging detalhado para debug
+ */
+
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
   Param,
   UseGuards,
   Request,
@@ -20,8 +37,20 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @UseGuards(RateLimitGuard, JwtAuthGuard)
 @ApiBearerAuth()
 export class InvestimentosController {
-  constructor(private readonly investimentosService: InvestimentosService) {}
+  constructor(private readonly investimentosService: InvestimentosService) { }
 
+  /**
+   * Lista todos os investimentos do usuário autenticado
+   * 
+   * @description
+   * Retorna uma lista com todos os investimentos
+   * associados ao usuário que fez a requisição.
+   * 
+   * @route GET /investimentos
+   * @security JWT
+   * @param req - Request com dados do usuário autenticado
+   * @returns Array de investimentos do usuário
+   */
   @Get()
   @ApiOperation({ summary: 'Listar todos os investimentos do usuário' })
   async findAll(@Request() req) {
@@ -32,6 +61,20 @@ export class InvestimentosController {
     return this.investimentosService.findAll(req.user.sub);
   }
 
+  /**
+   * Cria um novo investimento
+   * 
+   * @description
+   * Registra um novo investimento para o usuário autenticado.
+   * Realiza validações e cálculos financeiros.
+   * 
+   * @route POST /investimentos
+   * @security JWT
+   * @param createInvestimentoDto - Dados do novo investimento
+   * @param req - Request com dados do usuário autenticado
+   * @returns Objeto com investimento e dashboard criados
+   * @throws {UnauthorizedException} Se usuário não autenticado
+   */
   @Post()
   @ApiOperation({ summary: 'Criar novo investimento' })
   async create(@Body() createInvestimentoDto: CreateInvestimentoDto, @Request() req) {
@@ -56,6 +99,18 @@ export class InvestimentosController {
     return resultado;
   }
 
+  /**
+   * Busca um investimento específico
+   * 
+   * @description
+   * Retorna os detalhes de um investimento pelo seu ID.
+   * 
+   * @route GET /investimentos/:id
+   * @security JWT
+   * @param id - ID do investimento
+   * @param req - Request com dados do usuário autenticado
+   * @returns Detalhes do investimento
+   */
   @Get(':id')
   @ApiOperation({ summary: 'Buscar investimento por ID' })
   async findOne(@Param('id') id: string, @Request() req) {
@@ -66,6 +121,18 @@ export class InvestimentosController {
     return this.investimentosService.findOne(id);
   }
 
+  /**
+   * Remove um investimento
+   * 
+   * @description
+   * Exclui um investimento e seu dashboard associado.
+   * 
+   * @route DELETE /investimentos/:id
+   * @security JWT
+   * @param id - ID do investimento
+   * @param req - Request com dados do usuário autenticado
+   * @returns Resultado da operação de remoção
+   */
   @Delete(':id')
   @ApiOperation({ summary: 'Deletar investimento' })
   async remove(@Param('id') id: string, @Request() req) {
