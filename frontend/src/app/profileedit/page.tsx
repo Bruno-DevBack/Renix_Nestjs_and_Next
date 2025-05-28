@@ -1,31 +1,25 @@
 'use client'
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, Camera } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthGuard } from '@/components/AuthGuard';
 import { authService } from '@/services/authService';
 import { Usuario } from '@/types';
 
 export default function ProfileEditPage() {
-  const { usuario, updateUserData, updateProfilePhoto } = useAuth();
+  const { usuario, updateUserData } = useAuth();
   const router = useRouter();
   const [menuAberto, setMenuAberto] = useState(false);
   const [user, setUser] = useState<Usuario | null>(null);
   const [mensagem, setMensagem] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [removing, setRemoving] = useState(false);
-  const [fotoError, setFotoError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (usuario) {
       setUser(usuario);
-      setPreview(usuario.fotoPerfilBase64 || null);
     }
   }, [usuario]);
 
@@ -80,84 +74,6 @@ export default function ProfileEditPage() {
     }
   }
 
-  async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setFotoError('');
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    // Validação do arquivo
-    if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
-      setFotoError('Formato inválido. Use apenas JPG ou PNG.');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setFotoError('Arquivo muito grande. Tamanho máximo: 5MB.');
-      return;
-    }
-
-    // Preview da imagem
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setPreview(ev.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-
-    // Upload da foto
-    setUploading(true);
-    setMensagem('');
-    try {
-      const updatedUser = await updateProfilePhoto(file);
-      setUser(updatedUser);
-      setMensagem('Foto atualizada com sucesso!');
-      
-      // Atualiza o preview com a nova foto
-      if (updatedUser.fotoPerfilBase64) {
-        setPreview(updatedUser.fotoPerfilBase64);
-      }
-    } catch (err: any) {
-      console.error('Erro ao fazer upload da foto:', err);
-      
-      if (err.response?.status === 413) {
-        setFotoError('Arquivo muito grande. Tamanho máximo: 5MB.');
-      } else if (err.response?.status === 415) {
-        setFotoError('Formato inválido. Use apenas JPG ou PNG.');
-      } else if (err.response?.status === 401) {
-        setFotoError('Não autorizado. Por favor, faça login novamente.');
-        router.push('/login');
-      } else {
-        setFotoError(err.response?.data?.message || 'Erro ao fazer upload da foto. Tente novamente.');
-      }
-      // Restaura o preview anterior em caso de erro
-      setPreview(usuario?.fotoPerfilBase64 || null);
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleRemoverFoto() {
-    if (!window.confirm('Remover foto de perfil?')) return;
-    setRemoving(true);
-    setFotoError('');
-    try {
-      const updatedUser = await authService.removeProfilePhoto();
-      setUser(updatedUser);
-      setPreview(null);
-      setMensagem('Foto removida com sucesso!');
-    } catch (err: any) {
-      console.error('Erro ao remover foto:', err);
-      if (err.response?.status === 404) {
-        setFotoError('Usuário não encontrado.');
-      } else if (err.response?.status === 401) {
-        setFotoError('Não autorizado. Por favor, faça login novamente.');
-        router.push('/login');
-      } else {
-        setFotoError('Erro ao remover foto.');
-      }
-    } finally {
-      setRemoving(false);
-    }
-  }
-
   if (!usuario) {
     return null;
   }
@@ -182,49 +98,9 @@ export default function ProfileEditPage() {
         {/* Perfil */}
         <main className="flex-1 flex items-center justify-center py-10 px-4 bg-gray-50">
           <form onSubmit={handleSubmit} className="w-full max-w-sm bg-white rounded-2xl shadow-md p-6 flex flex-col items-center space-y-6">
-            {/* Foto de perfil */}
-            <div className="relative flex flex-col items-center mb-2">
-              <div className="w-24 h-24 rounded-full bg-gray-100 overflow-hidden border border-gray-300 flex items-center justify-center group transition-all">
-                {preview ? (
-                  <img
-                    src={preview}
-                    alt="Foto de perfil"
-                    className="w-full h-full object-cover rounded-full group-hover:opacity-80 transition-all"
-                    onError={e => { (e.target as HTMLImageElement).src = '/avatar.png'; }}
-                  />
-                ) : (
-                  <img src="/avatar.png" alt="Avatar" className="w-16 h-16 object-cover rounded-full opacity-60" />
-                )}
-                <button
-                  type="button"
-                  className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow hover:bg-gray-200 transition-all border border-gray-300"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Alterar foto"
-                  disabled={uploading || removing}
-                >
-                  <Camera size={20} className="text-gray-700" />
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/jpg"
-                  className="hidden"
-                  onChange={handleFotoChange}
-                  disabled={uploading || removing}
-                />
-              </div>
-              {preview && (
-                <button
-                  type="button"
-                  className="mt-2 text-xs text-red-600 hover:underline disabled:opacity-60"
-                  onClick={handleRemoverFoto}
-                  disabled={removing || uploading}
-                >
-                  {removing ? 'Removendo...' : 'Remover foto'}
-                </button>
-              )}
-              {fotoError && <div className="text-xs text-red-600 mt-1">{fotoError}</div>}
-              {uploading && <div className="text-xs text-gray-500 mt-1">Enviando foto...</div>}
+            {/* Avatar padrão */}
+            <div className="w-24 h-24 rounded-full bg-gray-100 overflow-hidden border border-gray-300 flex items-center justify-center">
+              <img src="/avatar.png" alt="Avatar" className="w-16 h-16 object-cover rounded-full opacity-60" />
             </div>
 
             <h2 className="text-xl font-semibold text-gray-900">{user?.nome_usuario || 'Nome do Usuário'}</h2>
@@ -264,32 +140,20 @@ export default function ProfileEditPage() {
               <button
                 type="button"
                 onClick={() => router.push('/profile')}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200"
-                disabled={loading}
+                className="flex-1 py-2 px-4 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-[#028264] text-white rounded-xl hover:bg-[#026953] focus:outline-none focus:ring-2 focus:ring-[#028264] disabled:opacity-50"
                 disabled={loading}
+                className="flex-1 py-2 px-4 bg-[#028264] text-white rounded-xl hover:bg-[#0e7a63] transition-colors disabled:opacity-50"
               >
                 {loading ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </form>
         </main>
-
-        {/* Rodapé */}
-        <footer className="bg-white mt-12 shadow-sm">
-          <div className="max-w-screen-xl mx-auto px-6 py-4 flex flex-col md:flex-row items-center justify-between text-sm text-gray-500">
-            <span>© 2025 <a href="/" className="hover:underline">Renix™</a>. Todos os direitos reservados.</span>
-            <div className="flex gap-4 mt-2 md:mt-0">
-              <a href="/" className="hover:underline">Sobre</a>
-              <a href="/" className="hover:underline">Contato</a>
-            </div>
-          </div>
-        </footer>
       </div>
     </AuthGuard>
   );

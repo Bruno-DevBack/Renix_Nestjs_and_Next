@@ -5,10 +5,9 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PrivateLayout } from '@/components/PrivateLayout';
 import { investimentosService } from '@/services/investimentosService';
-import { bancosService, InvestimentoDisponivel } from '@/services/bancosService';
+import { bancosService } from '@/services/bancosService';
 import { CreateInvestimentoDto, Banco } from '@/types';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 export default function NewInvestmentPage() {
     const router = useRouter();
@@ -19,7 +18,19 @@ export default function NewInvestmentPage() {
     const [mensagem, setMensagem] = useState('');
     const investimentoId = searchParams.get('id');
     const [bancos, setBancos] = useState<Banco[]>([]);
-    const [investimentosDisponiveis, setInvestimentosDisponiveis] = useState<InvestimentoDisponivel[]>([]);
+    const [tiposInvestimento, setTiposInvestimento] = useState<Array<{
+        tipo: string;
+        nome: string;
+        descricao: string;
+        caracteristicas: {
+            rentabilidade_anual: number;
+            risco: number;
+            liquidez: number;
+            garantia_fgc: boolean;
+            valor_minimo: number;
+            taxa_administracao?: number;
+        };
+    }>>([]);
     
     const [investimento, setInvestimento] = useState<CreateInvestimentoDto>({
         titulo: '',
@@ -33,24 +44,33 @@ export default function NewInvestmentPage() {
             risco: 1,
             liquidez: 1,
             garantia_fgc: false,
-            valor_minimo: 0
+            valor_minimo: 0,
+            rentabilidade_anual: 0
         }
     });
 
+    // Carrega a lista de bancos ao montar o componente
     useEffect(() => {
         const carregarBancos = async () => {
-            const data = await bancosService.listarTodos();
-            setBancos(data);
+            try {
+                const data = await bancosService.listarTodos();
+                setBancos(data);
+            } catch (error) {
+                console.error('Erro ao carregar bancos:', error);
+                setErro('Não foi possível carregar a lista de bancos.');
+            }
         };
 
         carregarBancos();
     }, []);
 
+    // Carrega os dados do investimento se estiver editando
     useEffect(() => {
         const carregarInvestimento = async () => {
             if (!investimentoId) return;
 
             try {
+                setLoading(true);
                 const data = await investimentosService.buscarPorId(investimentoId);
                 if (data) {
                     setInvestimento({
@@ -62,77 +82,88 @@ export default function NewInvestmentPage() {
                         tipo_investimento: data.tipo_investimento,
                         caracteristicas: data.caracteristicas
                     });
+
+                    // Carrega os tipos de investimento do banco selecionado
+                    await carregarTiposInvestimento(data.banco_id);
                 }
-            } catch (err: any) {
-                console.error('Erro ao carregar investimento:', err);
+            } catch (error) {
+                console.error('Erro ao carregar investimento:', error);
                 setErro('Erro ao carregar dados do investimento.');
+            } finally {
+                setLoading(false);
             }
         };
 
         carregarInvestimento();
     }, [investimentoId]);
 
-    useEffect(() => {
-        const carregarInvestimentosDisponiveis = async () => {
-            if (!investimento.banco_id) return;
-            
-            const data = await bancosService.buscarInvestimentosDisponiveis(investimento.banco_id);
-            setInvestimentosDisponiveis(data);
-        };
+    const carregarTiposInvestimento = async (bancoId: string) => {
+        try {
+            setLoading(true);
+            const [tiposBasicos, investimentosDisponiveis] = await Promise.all([
+                bancosService.buscarTiposInvestimento(bancoId),
+                bancosService.buscarInvestimentosDisponiveis(bancoId)
+            ]);
 
-        carregarInvestimentosDisponiveis();
-    }, [investimento.banco_id]);
+            const tiposCompletos = tiposBasicos.map(tipo => {
+                const investimentoDisponivel = investimentosDisponiveis.find(inv => inv.tipo === tipo.tipo);
+                return {
+                    ...tipo,
+                    caracteristicas: investimentoDisponivel?.caracteristicas || {
+                        rentabilidade_anual: 0,
+                        risco: 1,
+                        liquidez: 1,
+                        garantia_fgc: false,
+                        valor_minimo: 0
+                    }
+                };
+            });
+
+            setTiposInvestimento(tiposCompletos);
+        } catch (error) {
+            console.error('Erro ao carregar tipos de investimento:', error);
+            setErro('Erro ao carregar tipos de investimento disponíveis.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleBancoChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const bancoId = e.target.value;
-        const bancoSelecionado = bancos.find(b => b._id === bancoId);
-        
-        // Busca dados específicos do banco
-        const dadosBanco = await bancosService.buscarDadosBanco(bancoId);
         
         setInvestimento(prev => ({
             ...prev,
             banco_id: bancoId,
-            tipo_investimento: '', // Reseta o tipo quando muda o banco
+            tipo_investimento: '',
             caracteristicas: {
                 tipo: '',
-                risco: dadosBanco?.caracteristicas.rendimentoBase || 1,
-                liquidez: dadosBanco?.caracteristicas.liquidezDiaria ? 1 : 3,
-                garantia_fgc: false,
-                valor_minimo: dadosBanco?.caracteristicas.investimentoMinimo || 0,
-                taxa_administracao: dadosBanco?.caracteristicas.taxaAdministracao
-            }
-        }));
-
-        // Carrega os tipos de investimento disponíveis
-        const tiposInvestimento = await bancosService.buscarTiposInvestimento(bancoId);
-        setInvestimentosDisponiveis(tiposInvestimento.map(tipo => ({
-            tipo: tipo.tipo,
-            caracteristicas: {
-                rentabilidade_anual: 0,
                 risco: 1,
                 liquidez: 1,
                 garantia_fgc: false,
-                valor_minimo: dadosBanco?.caracteristicas.investimentoMinimo || 0
+                valor_minimo: 0,
+                rentabilidade_anual: 0
             }
-        })));
+        }));
+
+        if (bancoId) {
+            await carregarTiposInvestimento(bancoId);
+        } else {
+            setTiposInvestimento([]);
+        }
     };
 
-    const handleTipoChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleTipoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const tipoSelecionado = e.target.value;
-        const investimentoDisponivel = investimentosDisponiveis.find(i => i.tipo === tipoSelecionado);
+        const tipoInvestimento = tiposInvestimento.find(t => t.tipo === tipoSelecionado);
         
-        if (investimentoDisponivel) {
-            // Busca características específicas do tipo de investimento
-            const dadosInvestimento = await bancosService.buscarInvestimentosDisponiveis(investimento.banco_id);
-            const caracteristicasInvestimento = dadosInvestimento.find(i => i.tipo === tipoSelecionado);
-            
+        if (tipoInvestimento) {
+            const bancoSelecionado = bancos.find(b => b._id === investimento.banco_id);
             setInvestimento(prev => ({
                 ...prev,
                 tipo_investimento: tipoSelecionado,
-                titulo: `${tipoSelecionado} - ${bancos.find(b => b._id === prev.banco_id)?.nome_banco || ''}`,
+                titulo: `${tipoInvestimento.nome} - ${bancoSelecionado?.nome_banco || ''}`,
                 caracteristicas: {
-                    ...caracteristicasInvestimento?.caracteristicas || investimentoDisponivel.caracteristicas,
+                    ...tipoInvestimento.caracteristicas,
                     tipo: tipoSelecionado
                 }
             }));
@@ -145,38 +176,53 @@ export default function NewInvestmentPage() {
         setErro('');
         setMensagem('');
 
-        if (!investimento.banco_id || !investimento.tipo_investimento || !investimento.valor_investimento) {
-            setErro('Por favor, preencha todos os campos obrigatórios.');
-            setLoading(false);
-            return;
-        }
-
-        if (investimento.caracteristicas && investimento.valor_investimento < investimento.caracteristicas.valor_minimo) {
-            setErro(`O valor mínimo para este investimento é R$ ${investimento.caracteristicas.valor_minimo.toLocaleString('pt-BR')}`);
-            setLoading(false);
-            return;
-        }
-
         try {
+            // Validações
+            if (!investimento.banco_id) {
+                throw new Error('Selecione um banco.');
+            }
+
+            if (!investimento.tipo_investimento) {
+                throw new Error('Selecione um tipo de investimento.');
+            }
+
+            if (!investimento.valor_investimento || investimento.valor_investimento <= 0) {
+                throw new Error('Informe um valor de investimento válido.');
+            }
+
+            if (investimento.caracteristicas.valor_minimo > 0 && 
+                investimento.valor_investimento < investimento.caracteristicas.valor_minimo) {
+                throw new Error(`O valor mínimo para este investimento é R$ ${investimento.caracteristicas.valor_minimo.toLocaleString('pt-BR')}`);
+            }
+
             const dadosInvestimento = {
                 ...investimento,
                 usuario_id: usuario?.id
             };
 
+            let response;
             if (investimentoId) {
-                await investimentosService.atualizar(investimentoId, dadosInvestimento);
+                response = await investimentosService.atualizar(investimentoId, dadosInvestimento);
                 setMensagem('Investimento atualizado com sucesso!');
             } else {
-                await investimentosService.criar(dadosInvestimento);
+                response = await investimentosService.criar(dadosInvestimento);
+                console.log('Debug - Resposta após criar investimento:', response);
                 setMensagem('Investimento criado com sucesso!');
             }
 
+            // Redireciona para o dashboard do investimento criado/atualizado
             setTimeout(() => {
-                router.push('/investments');
+                const dashboardId = response?.data?.dashboard?._id;
+                if (!dashboardId) {
+                    console.error('Debug - ID do dashboard não encontrado na resposta:', response);
+                    setErro('Erro ao redirecionar para o dashboard. Tente novamente.');
+                    return;
+                }
+                router.push(`/dashboard/${dashboardId}`);
             }, 1500);
-        } catch (err: any) {
-            console.error('Erro ao salvar investimento:', err);
-            setErro(err?.response?.data?.message || 'Erro ao salvar investimento.');
+        } catch (error: any) {
+            console.error('Erro ao salvar investimento:', error);
+            setErro(error?.message || error?.response?.data?.message || 'Erro ao salvar investimento.');
         } finally {
             setLoading(false);
         }
@@ -208,6 +254,7 @@ export default function NewInvestmentPage() {
                     )}
 
                     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm space-y-6">
+                        {/* Seleção do Banco */}
                         <div>
                             <label htmlFor="banco" className="block text-sm font-medium text-gray-700 mb-1">
                                 Banco
@@ -215,10 +262,10 @@ export default function NewInvestmentPage() {
                             <select
                                 id="banco"
                                 name="banco"
-                                value={investimento.banco_id || ''}
+                                value={investimento.banco_id}
                                 onChange={handleBancoChange}
-                                required
-                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                disabled={loading}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100"
                             >
                                 <option value="">Selecione um banco</option>
                                 {bancos.map((banco) => (
@@ -229,6 +276,7 @@ export default function NewInvestmentPage() {
                             </select>
                         </div>
 
+                        {/* Tipo de Investimento */}
                         {investimento.banco_id && (
                             <div>
                                 <label htmlFor="tipo" className="block text-sm font-medium text-gray-700 mb-1">
@@ -239,149 +287,128 @@ export default function NewInvestmentPage() {
                                     name="tipo"
                                     value={investimento.tipo_investimento}
                                     onChange={handleTipoChange}
-                                    required
-                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                    disabled={loading || !investimento.banco_id}
+                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100"
                                 >
-                                    <option key="empty" value="">Selecione o tipo</option>
-                                    {investimentosDisponiveis.map((inv) => (
-                                        <option key={inv.tipo} value={inv.tipo}>
-                                            {inv.tipo}
+                                    <option value="">Selecione o tipo</option>
+                                    {tiposInvestimento.map((tipo) => (
+                                        <option key={tipo.tipo} value={tipo.tipo}>
+                                            {tipo.nome}
                                         </option>
                                     ))}
                                 </select>
                             </div>
                         )}
 
+                        {/* Valor do Investimento */}
                         {investimento.tipo_investimento && (
-                            <>
-                                <div>
-                                    <label htmlFor="titulo" className="block text-sm font-medium text-gray-700 mb-1">
-                                        Título do Investimento
-                                    </label>
+                            <div>
+                                <label htmlFor="valor" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Valor do Investimento
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                                        R$
+                                    </span>
                                     <input
-                                        type="text"
-                                        id="titulo"
-                                        name="titulo"
-                                        value={investimento.titulo}
-                                        onChange={(e) => setInvestimento(prev => ({ ...prev, titulo: e.target.value }))}
-                                        required
-                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
-                                        placeholder="Ex: CDB Banco X"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label htmlFor="valor" className="block text-sm font-medium text-gray-700 mb-1">
-                                        Valor do Investimento (R$)
-                                    </label>
-                                    <input
-                                        type="number"
                                         id="valor"
-                                        name="valor"
-                                        value={investimento.valor_investimento}
-                                        onChange={(e) => setInvestimento(prev => ({ ...prev, valor_investimento: Number(e.target.value) }))}
-                                        required
-                                        min={investimento.caracteristicas?.valor_minimo || 0}
+                                        type="number"
+                                        min={investimento.caracteristicas.valor_minimo}
                                         step="0.01"
-                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                        value={investimento.valor_investimento || ''}
+                                        onChange={(e) => setInvestimento(prev => ({
+                                            ...prev,
+                                            valor_investimento: parseFloat(e.target.value) || 0
+                                        }))}
+                                        disabled={loading}
+                                        className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100"
+                                        placeholder="0,00"
                                     />
-                                    {investimento.caracteristicas && (
-                                        <p className="mt-1 text-sm text-gray-500">
-                                            Valor mínimo: R$ {investimento.caracteristicas.valor_minimo.toLocaleString('pt-BR')}
-                                        </p>
-                                    )}
                                 </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label htmlFor="data_inicio" className="block text-sm font-medium text-gray-700 mb-1">
-                                            Data de Início
-                                        </label>
-                                        <input
-                                            type="date"
-                                            id="data_inicio"
-                                            name="data_inicio"
-                                            value={investimento.data_inicio || format(new Date(), 'yyyy-MM-dd')}
-                                            onChange={(e) => setInvestimento(prev => ({ ...prev, data_inicio: e.target.value }))}
-                                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label htmlFor="data_fim" className="block text-sm font-medium text-gray-700 mb-1">
-                                            Data de Vencimento
-                                        </label>
-                                        <input
-                                            type="date"
-                                            id="data_fim"
-                                            name="data_fim"
-                                            value={investimento.data_fim || format(new Date().setFullYear(new Date().getFullYear() + 1), 'yyyy-MM-dd')}
-                                            onChange={(e) => setInvestimento(prev => ({ ...prev, data_fim: e.target.value }))}
-                                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
-                                        />
-                                    </div>
-                                </div>
-
-                                {investimento.caracteristicas && (
-                                    <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                                        <h3 className="font-medium text-gray-900">Características do Investimento</h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <p className="text-sm text-gray-500">Rentabilidade Anual</p>
-                                                <p className="font-medium">{investimento.caracteristicas.rentabilidade_anual}% a.a.</p>
-                                            </div>
-                                            {investimento.caracteristicas.indexador && (
-                                                <div>
-                                                    <p className="text-sm text-gray-500">Indexador</p>
-                                                    <p className="font-medium">
-                                                        {investimento.caracteristicas.percentual_indexador}% do {investimento.caracteristicas.indexador}
-                                                    </p>
-                                                </div>
-                                            )}
-                                            <div>
-                                                <p className="text-sm text-gray-500">Nível de Risco</p>
-                                                <p className="font-medium">{investimento.caracteristicas.risco}/5</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-gray-500">Liquidez</p>
-                                                <p className="font-medium">{investimento.caracteristicas.liquidez}/5</p>
-                                            </div>
-                                            {investimento.caracteristicas.taxa_administracao && (
-                                                <div>
-                                                    <p className="text-sm text-gray-500">Taxa de Administração</p>
-                                                    <p className="font-medium">{investimento.caracteristicas.taxa_administracao}% a.a.</p>
-                                                </div>
-                                            )}
-                                            {investimento.caracteristicas.taxa_performance && (
-                                                <div>
-                                                    <p className="text-sm text-gray-500">Taxa de Performance</p>
-                                                    <p className="font-medium">{investimento.caracteristicas.taxa_performance}%</p>
-                                                </div>
-                                            )}
-                                            <div>
-                                                <p className="text-sm text-gray-500">Garantia FGC</p>
-                                                <p className="font-medium">{investimento.caracteristicas.garantia_fgc ? 'Sim' : 'Não'}</p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                {investimento.caracteristicas.valor_minimo > 0 && (
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Valor mínimo: R$ {investimento.caracteristicas.valor_minimo.toLocaleString('pt-BR')}
+                                    </p>
                                 )}
-                            </>
+                            </div>
                         )}
 
-                        <div className="flex justify-end space-x-4 pt-4">
-                            <button
-                                type="button"
-                                onClick={() => router.push('/investments')}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
-                            >
-                                Cancelar
-                            </button>
+                        {/* Datas */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="data_inicio" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Data de Início
+                                </label>
+                                <input
+                                    id="data_inicio"
+                                    type="date"
+                                    value={investimento.data_inicio}
+                                    onChange={(e) => setInvestimento(prev => ({
+                                        ...prev,
+                                        data_inicio: e.target.value
+                                    }))}
+                                    disabled={loading}
+                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="data_fim" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Data de Vencimento
+                                </label>
+                                <input
+                                    id="data_fim"
+                                    type="date"
+                                    value={investimento.data_fim}
+                                    onChange={(e) => setInvestimento(prev => ({
+                                        ...prev,
+                                        data_fim: e.target.value
+                                    }))}
+                                    disabled={loading}
+                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Informações do Investimento Selecionado */}
+                        {investimento.tipo_investimento && (
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                                <h3 className="text-sm font-medium text-gray-700 mb-2">
+                                    Características do Investimento
+                                </h3>
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <p className="text-gray-500">Rentabilidade Anual</p>
+                                        <p className="font-medium">{investimento.caracteristicas.rentabilidade_anual}%</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500">Nível de Risco</p>
+                                        <p className="font-medium">{investimento.caracteristicas.risco}/5</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500">Liquidez</p>
+                                        <p className="font-medium">
+                                            {investimento.caracteristicas.liquidez === 1 ? 'Diária' :
+                                             investimento.caracteristicas.liquidez === 2 ? 'Semanal' :
+                                             investimento.caracteristicas.liquidez === 3 ? 'Mensal' :
+                                             investimento.caracteristicas.liquidez === 4 ? 'Anual' : 'No vencimento'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500">Garantia FGC</p>
+                                        <p className="font-medium">{investimento.caracteristicas.garantia_fgc ? 'Sim' : 'Não'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Botão de Submit */}
+                        <div>
                             <button
                                 type="submit"
-                                disabled={loading}
-                                className={`px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 ${loading ? 'opacity-75 cursor-not-allowed' : ''}`}
+                                disabled={loading || !investimento.banco_id || !investimento.tipo_investimento || !investimento.valor_investimento}
+                                className="w-full py-3 px-4 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                                {loading ? 'Salvando...' : investimentoId ? 'Atualizar' : 'Criar Investimento'}
+                                {loading ? 'Salvando...' : investimentoId ? 'Atualizar Investimento' : 'Criar Investimento'}
                             </button>
                         </div>
                     </form>

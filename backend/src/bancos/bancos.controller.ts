@@ -6,7 +6,7 @@ import { HistoricoResponse, DadosBancoResponse, TipoInvestimento } from './banco
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 
 @ApiTags('Bancos')
-@Controller('api/bancos')
+@Controller('bancos')
 export class BancosController {
   constructor(private readonly bancosService: BancosService) { }
 

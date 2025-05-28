@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { authService } from '@/services/authService';
-import { Usuario, AuthContextData, AuthResponse } from '@/types';
+import { Usuario, AuthContextData } from '@/types';
 import api from '@/lib/api';
 import axios from 'axios';
 import { jwtDecode } from "jwt-decode";
@@ -20,7 +20,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isTokenValid = (token: string): boolean => {
         try {
             const decoded = jwtDecode<{ exp: number }>(token);
-            return decoded.exp * 1000 > Date.now();
+            const currentTime = Math.floor(Date.now() / 1000);
+            console.log('Debug - Validando token no frontend:', {
+                exp: decoded.exp,
+                currentTime: currentTime,
+                isValid: decoded.exp > currentTime
+            });
+            return decoded.exp > currentTime;
         } catch {
             return false;
         }
@@ -29,14 +35,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Função para configurar o token nas requisições
     const setAuthToken = (token: string | null) => {
         if (token && isTokenValid(token)) {
-            api.defaults.headers.Authorization = `Bearer ${token}`;
+            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             localStorage.setItem('@RenixApp:token', token);
         } else {
-            delete api.defaults.headers.Authorization;
+            delete api.defaults.headers.common['Authorization'];
             localStorage.removeItem('@RenixApp:token');
             localStorage.removeItem('@RenixApp:user');
             setUsuario(null);
         }
+    };
+
+    const isPublicRoute = (path: string): boolean => {
+        const publicRoutes = ['/', '/login', '/cadastro', '/esqueci-senha'];
+        return publicRoutes.includes(path);
+    };
+
+    // Função para atualizar o token nas requisições
+    const updateAuthToken = () => {
+        const token = localStorage.getItem('@RenixApp:token');
+        if (token && isTokenValid(token)) {
+            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            return true;
+        }
+        return false;
     };
 
     useEffect(() => {
@@ -77,25 +98,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         loadStoredData();
 
-        // Verificar o token periodicamente
+        // Verificar e atualizar o token a cada 30 segundos
         const tokenCheckInterval = setInterval(() => {
             const token = localStorage.getItem('@RenixApp:token');
-            if (token && !isTokenValid(token)) {
-                console.log('Token expirado durante a verificação periódica');
-                setAuthToken(null);
-                if (!isPublicRoute(pathname)) {
-                    router.replace('/login');
-                }
+            if (token) {
+                console.log('Debug - Verificando token:', token);
+                console.log('Debug - Token válido:', isTokenValid(token));
             }
-        }, 60000); // Verifica a cada minuto
+        }, 30000);
 
-        return () => clearInterval(tokenCheckInterval);
-    }, [pathname]);
-
-    const isPublicRoute = (path: string): boolean => {
-        const publicRoutes = ['/', '/login', '/register'];
-        return publicRoutes.includes(path);
-    };
+        return () => {
+            clearInterval(tokenCheckInterval);
+        };
+    }, [pathname, router]);
 
     const signIn = async (email: string, senha: string) => {
         try {
@@ -149,22 +164,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const updateProfilePhoto = async (file: File) => {
-        if (!usuario?.id) throw new Error('Usuário não encontrado');
-
-        try {
-            const updatedUser = await authService.uploadProfilePhoto(usuario.id, file);
-            setUsuario(updatedUser);
-            localStorage.setItem('@RenixApp:user', JSON.stringify(updatedUser));
-            return updatedUser;
-        } catch (error) {
-            if (axios.isAxiosError(error) && error.response?.status === 401) {
-                signOut();
-            }
-            throw error;
-        }
-    };
-
     return (
         <AuthContext.Provider
             value={{
@@ -172,7 +171,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 signIn,
                 signOut,
                 updateUserData,
-                updateProfilePhoto,
                 isAuthenticated: !!usuario,
                 loading
             }}

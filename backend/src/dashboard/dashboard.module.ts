@@ -4,6 +4,7 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { Dashboard, DashboardSchema } from './schemas/dashboard.schema';
 import { PdfService } from './pdf.service';
+import { AuthModule } from '../auth/auth.module';
 
 /**
  * Módulo responsável por gerenciar os dashboards de investimentos
@@ -19,7 +20,8 @@ import { PdfService } from './pdf.service';
 @Module({
   imports: [
     // Registra o modelo de Dashboard no Mongoose
-    MongooseModule.forFeature([{ name: Dashboard.name, schema: DashboardSchema }])
+    MongooseModule.forFeature([{ name: Dashboard.name, schema: DashboardSchema }]),
+    AuthModule
   ],
   controllers: [DashboardController], // Controller que gerencia as rotas de dashboard
   providers: [

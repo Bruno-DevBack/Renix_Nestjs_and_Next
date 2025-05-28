@@ -7,6 +7,7 @@ import { Dashboard, DashboardSchema } from '../dashboard/schemas/dashboard.schem
 import { Banco, BancoSchema } from '../bancos/schemas/banco.schema';
 import { Usuario, UsuarioSchema } from '../usuarios/schemas/usuario.schema';
 import { CalculoInvestimentoService } from './services/calculo-investimento.service';
+import { AuthModule } from '../auth/auth.module';
 
 /**
  * Módulo responsável por gerenciar todas as operações de investimentos
@@ -28,6 +29,7 @@ import { CalculoInvestimentoService } from './services/calculo-investimento.serv
       { name: Banco.name, schema: BancoSchema },              // Modelo de Bancos
       { name: Usuario.name, schema: UsuarioSchema },          // Modelo de Usuários
     ]),
+    AuthModule // Importa o módulo de autenticação para validação do token JWT
   ],
   controllers: [InvestimentosController], // Controller que gerencia as rotas de investimentos
   providers: [

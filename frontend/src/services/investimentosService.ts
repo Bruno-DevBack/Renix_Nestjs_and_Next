@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import { Investimento, CreateInvestimentoDto } from '@/types';
+import { Investimento, CreateInvestimentoDto, InvestimentoResponse } from '@/types';
 
 class InvestimentosService {
     private readonly baseUrl = '/investimentos';
@@ -14,13 +14,15 @@ class InvestimentosService {
         return response.data;
     }
 
-    public async criar(investimento: CreateInvestimentoDto): Promise<Investimento> {
-        const response = await api.post<Investimento>(this.baseUrl, investimento);
+    public async criar(investimento: CreateInvestimentoDto): Promise<InvestimentoResponse> {
+        console.log('Debug - Enviando dados para criar investimento:', investimento);
+        const response = await api.post<InvestimentoResponse>(this.baseUrl, investimento);
+        console.log('Debug - Resposta do servidor:', response.data);
         return response.data;
     }
 
-    public async atualizar(id: string, investimento: Partial<CreateInvestimentoDto>): Promise<Investimento> {
-        const response = await api.patch<Investimento>(`${this.baseUrl}/${id}`, investimento);
+    public async atualizar(id: string, investimento: Partial<CreateInvestimentoDto>): Promise<InvestimentoResponse> {
+        const response = await api.patch<InvestimentoResponse>(`${this.baseUrl}/${id}`, investimento);
         return response.data;
     }
 

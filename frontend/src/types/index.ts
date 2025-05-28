@@ -1,6 +1,7 @@
 // Interfaces de Usuário
 export interface Usuario {
     id: string;
+    _id?: string; // ID do MongoDB
     nome_usuario: string;
     email_usuario: string;
     telefone_usuario?: string;
@@ -46,12 +47,11 @@ export interface AuthResponse {
 
 export interface AuthContextData {
     usuario: Usuario | null;
-    loading: boolean;
-    isAuthenticated: boolean;
     signIn: (email: string, senha: string) => Promise<void>;
     signOut: () => void;
     updateUserData: (data: Partial<Usuario>) => Promise<Usuario>;
-    updateProfilePhoto: (file: File) => Promise<Usuario>;
+    isAuthenticated: boolean;
+    loading: boolean;
 }
 
 export interface LoginCredentials {
@@ -86,6 +86,75 @@ export interface Investimento {
     updated_at?: string;
 }
 
+export interface InvestimentoResponse {
+    data: {
+        message: string;
+        investimento: {
+            _id: string;
+            id: string;
+            titulo: string;
+            valor_investimento: number;
+            banco_id: string;
+            usuario_id: string;
+            data_inicio: string;
+            data_fim: string;
+            tipo_investimento: string;
+            caracteristicas: {
+                tipo: string;
+                rentabilidade_anual?: number;
+                indexador?: string;
+                percentual_indexador?: number;
+                risco: number;
+                liquidez: number;
+                garantia_fgc: boolean;
+                vencimento?: Date;
+                taxa_administracao?: number;
+                taxa_performance?: number;
+                valor_minimo: number;
+            };
+        };
+        dashboard: {
+            _id: string;
+            usuario_id: string;
+            nome_usuario: string;
+            banco_id: string;
+            nome_banco: string;
+            investimento_id: string;
+            tipo_investimento: string;
+            valor_investido: number;
+            data_inicio: Date;
+            data_fim: Date;
+            dias_corridos: number;
+            rendimento: {
+                valor_bruto: number;
+                valor_liquido: number;
+                valor_rendido: number;
+                rentabilidade_periodo: number;
+                rentabilidade_anualizada: number;
+                imposto_renda: number;
+                iof: number;
+                outras_taxas: number;
+            };
+            valor_atual: number;
+            valor_projetado: number;
+            indicadores_mercado: {
+                selic: number;
+                cdi: number;
+                ipca: number;
+            };
+            investimentos: Array<{
+                valor: number;
+                rendimento: number;
+                risco: number;
+                tipo: string;
+                banco: string;
+                liquidez: number;
+            }>;
+        };
+    };
+    timestamp: string;
+}
+
 export interface CreateInvestimentoDto {
     titulo: string;
     valor_investimento: number;
@@ -118,6 +187,7 @@ export interface InvestimentoHistorico {
 
 // Interfaces de Dashboard
 export interface Dashboard {
+    _id: string;
     usuario_id: string;
     nome_usuario: string;
     banco_id: string;
@@ -144,6 +214,14 @@ export interface Dashboard {
         selic: number;
         cdi: number;
         ipca: number;
+        ibovespa?: number;
+        ifix?: number;
+    };
+    alertas?: string[];
+    comparativo_mercado?: {
+        versus_poupanca: number;
+        versus_cdi: number;
+        versus_ipca: number;
     };
     investimentos: Array<{
         valor: number;
@@ -153,6 +231,8 @@ export interface Dashboard {
         banco: string;
         liquidez: number;
     }>;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface DashboardHistorico {

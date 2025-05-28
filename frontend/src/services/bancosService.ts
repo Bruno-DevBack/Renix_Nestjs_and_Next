@@ -23,7 +23,7 @@ interface ApiResponse<T> {
 }
 
 class BancosService {
-    private readonly baseUrl = '/api/bancos';
+    private readonly baseUrl = '/bancos';
 
     public async listarTodos(): Promise<Banco[]> {
         try {

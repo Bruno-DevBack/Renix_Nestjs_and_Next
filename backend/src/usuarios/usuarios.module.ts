@@ -1,7 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { UsuariosController } from './usuarios.controller';
 import { UsuariosService } from './usuarios.service';
@@ -24,18 +22,6 @@ import { AuthModule } from '../auth/auth.module';
     // Registra o modelo de Usuário no Mongoose
     MongooseModule.forFeature([{ name: Usuario.name, schema: UsuarioSchema }]),
     
-    // Configuração do JWT
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'sua_chave_secreta',
-        signOptions: {
-          expiresIn: '24h',
-        },
-      }),
-      inject: [ConfigService],
-    }),
-
     // Configuração do Multer para upload de arquivos
     MulterModule.register({
       storage: memoryStorage(),

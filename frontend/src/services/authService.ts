@@ -6,10 +6,11 @@ import axios from 'axios';
 class AuthService {
     private TOKEN_KEY = '@RenixApp:token';
     private USER_KEY = '@RenixApp:user';
+    private readonly baseUrl = '/usuarios';
 
     public async login(email: string, senha: string): Promise<{ token: string; user: Usuario }> {
         try {
-            const response = await api.post('/usuarios/login', {
+            const response = await api.post(`${this.baseUrl}/login`, {
                 email_usuario: email,
                 senha_usuario: senha
             });
@@ -20,12 +21,24 @@ class AuthService {
                 throw new Error('Dados de login inválidos');
             }
 
+            // Debug dos dados recebidos
+            console.log('Debug - Dados do usuário recebidos:', JSON.stringify(usuario, null, 2));
+
+            const userWithId = {
+                ...usuario,
+                id: usuario._id, // Usa o ID do MongoDB
+                _id: usuario._id // Mantém também o _id do MongoDB
+            };
+
+            console.log('Debug - Token recebido:', auth.token);
+            console.log('Debug - Usuário processado:', JSON.stringify(userWithId, null, 2));
+
             this.setToken(auth.token);
-            this.setUser(usuario);
+            this.setUser(userWithId);
 
             return {
                 token: auth.token,
-                user: usuario
+                user: userWithId
             };
         } catch (error) {
             console.error('Erro no login:', error);
@@ -62,9 +75,15 @@ class AuthService {
         if (!token) return false;
 
         try {
-            const decodedToken = jwtDecode(token);
-            const currentTime = Date.now() / 1000;
-            const isValid = (decodedToken.exp || 0) > currentTime;
+            const decodedToken = jwtDecode<{ exp: number }>(token);
+            const currentTime = Math.floor(Date.now() / 1000);
+            const isValid = decodedToken.exp > currentTime;
+
+            console.log('Debug - Verificando autenticação:', {
+                exp: decodedToken.exp,
+                currentTime: currentTime,
+                isValid: isValid
+            });
 
             if (!isValid) {
                 this.logout();
@@ -91,7 +110,7 @@ class AuthService {
     public async register(data: CreateUsuarioDto): Promise<Usuario> {
         try {
             console.log('Enviando dados para registro:', data);
-            const response = await api.post('/usuarios/registro', data);
+            const response = await api.post(`${this.baseUrl}/registro`, data);
 
             console.log('Resposta do servidor:', response.data);
 
@@ -131,7 +150,7 @@ class AuthService {
 
     public async getCurrentUser(): Promise<Usuario | null> {
         try {
-            const response = await api.get<{ usuario: Usuario }>('/usuarios/me');
+            const response = await api.get<{ usuario: Usuario }>(`${this.baseUrl}/me`);
             const user = response.data.usuario;
             this.setUser(user);
             return user;
@@ -152,13 +171,9 @@ class AuthService {
             throw new Error('Usuário não autenticado');
         }
 
-        console.log('Token atual:', token);
-        console.log('User ID:', userId);
-        console.log('Dados a serem atualizados:', data);
-
         try {
             const response = await api.patch<{ data: Usuario }>(
-                `/usuarios/${userId}`,
+                `${this.baseUrl}/${userId}`,
                 data,
                 {
                     headers: {
@@ -172,7 +187,6 @@ class AuthService {
             this.setUser(updatedUser);
             return updatedUser;
         } catch (error) {
-            // Se o token estiver inválido, limpa os dados e força um novo login
             if (axios.isAxiosError(error) && error.response?.status === 401) {
                 console.error('Token inválido, limpando dados...');
                 this.logout();
@@ -182,27 +196,72 @@ class AuthService {
     }
 
     public async uploadProfilePhoto(userId: string, file: File): Promise<Usuario> {
-        const formData = new FormData();
-        formData.append('file', file);
+        const currentUser = this.getUser();
+        if (!currentUser?.id) {
+            throw new Error('Usuário não encontrado');
+        }
+
+        // Verifica se o usuário está tentando modificar seu próprio perfil
+        if (currentUser.id !== userId) {
+            throw new Error('Você só pode modificar seu próprio perfil');
+        }
 
         const token = this.getToken();
         if (!token) {
-            throw new Error('Usuário não autenticado');
+            throw new Error('Token de autenticação não encontrado');
         }
 
-        const response = await api.post<{ data: Usuario }>(
-            `/usuarios/${userId}/foto-perfil`,
-            formData,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
+        // Verifica se o token é válido
+        try {
+            const decodedToken = jwtDecode<any>(token);
+            const currentTime = Date.now() / 1000;
+            
+            if ((decodedToken.exp || 0) <= currentTime) {
+                this.logout();
+                throw new Error('Token expirado');
             }
-        );
 
-        const updatedUser = response.data.data;
-        this.setUser(updatedUser);
-        return updatedUser;
+            // Verifica se o ID no token corresponde ao ID do usuário
+            if (decodedToken.sub !== userId) {
+                this.logout();
+                throw new Error('Token inválido para este usuário');
+            }
+        } catch (error) {
+            this.logout();
+            throw new Error('Token inválido');
+        }
+
+        console.log('Debug - Iniciando upload:', {
+            userId,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            currentUserId: currentUser.id
+        });
+
+        // Cria um FormData com o campo file
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            // Envia o arquivo usando FormData
+            const response = await api.post<Usuario>(
+                `${this.baseUrl}/${userId}/foto-perfil`,
+                formData,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            );
+
+            const updatedUser = response.data;
+            this.setUser(updatedUser);
+            return updatedUser;
+        } catch (error) {
+            console.error('Erro no upload da foto:', error);
+            throw error;
+        }
     }
 
     public async updateProfilePhoto(formData: FormData): Promise<Usuario> {

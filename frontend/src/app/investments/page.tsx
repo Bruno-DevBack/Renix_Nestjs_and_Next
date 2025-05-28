@@ -118,7 +118,7 @@ export default function InvestmentsPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleGerarPdf(dashboard.investimento_id);
+                        handleGerarPdf(dashboard._id);
                       }}
                       className="text-gray-400 hover:text-emerald-600 transition"
                       title="Gerar PDF"

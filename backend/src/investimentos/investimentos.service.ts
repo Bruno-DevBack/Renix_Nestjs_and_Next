@@ -21,15 +21,50 @@ export class InvestimentosService {
   async create(createInvestimentoDto: CreateInvestimentoDto) {
     const { usuario_id, banco_id, valor_investimento, data_inicio, data_fim, tipo_investimento, caracteristicas } = createInvestimentoDto;
 
-    const novoInvestimento = new this.investimentoModel(createInvestimentoDto);
-    await novoInvestimento.save();
-
+    // Buscar o banco antes de criar o investimento para obter o CDI
     const banco = await this.bancoModel.findById(banco_id);
     const usuario = await this.usuarioModel.findById(usuario_id);
 
     if (!banco || !usuario) {
       throw new NotFoundException('Usuário ou banco não encontrado');
     }
+
+    // Calcular o rendimento com base no tipo de investimento
+    let rendimento = caracteristicas.rentabilidade_anual;
+    if (!rendimento) {
+      switch (tipo_investimento) {
+        case 'TESOURO_SELIC':
+          rendimento = banco.cdi; // Usa o CDI do banco
+          break;
+        case 'POUPANCA':
+          rendimento = banco.cdi * 0.7; // 70% do CDI
+          break;
+        default:
+          rendimento = banco.cdi; // Valor padrão
+      }
+    }
+
+    // Mapear os campos do DTO para o schema do Mongoose
+    const investimentoData = {
+      ...createInvestimentoDto,
+      valor: valor_investimento,
+      banco: banco_id,
+      rendimento: rendimento,
+      tipo: tipo_investimento,
+      usuario_id,
+      banco_id,
+      valor_investimento,
+      data_inicio,
+      data_fim,
+      tipo_investimento,
+      caracteristicas: {
+        ...caracteristicas,
+        rentabilidade_anual: rendimento // Atualiza também o valor na característica
+      }
+    };
+
+    const novoInvestimento = new this.investimentoModel(investimentoData);
+    await novoInvestimento.save();
 
     // Cálculos financeiros
     const diasCorridos = Math.ceil(
@@ -85,17 +120,48 @@ export class InvestimentosService {
 
     await novoDashboard.save();
 
+    // Salvar no histórico do usuário
+    await this.usuarioModel.findByIdAndUpdate(
+      usuario_id,
+      {
+        $push: {
+          historico_investimentos: {
+            investimento_id: novoInvestimento._id,
+            tipo: tipo_investimento,
+            valor: valor_investimento,
+            data: new Date(),
+            banco: banco.nome_banco,
+            rendimento: rendimento
+          },
+          historico_dashboards: {
+            dashboard_id: novoDashboard._id,
+            nome: `Dashboard - ${tipo_investimento} ${banco.nome_banco}`,
+            data_geracao: new Date(),
+            bancos_comparados: [banco.nome_banco],
+            filtros_aplicados: []
+          }
+        }
+      }
+    );
+
     console.log('Criando investimento com valores:', {
       valor_investido: valor_investimento,
       valor_bruto: resultado.rendimentoBruto,
       valor_liquido: resultado.valorLiquido,
-      valor_rendido: resultado.valorLiquido - valor_investimento
+      valor_rendido: resultado.valorLiquido - valor_investimento,
+      rendimento: rendimento
     });
 
     return {
-      message: 'Investimento criado e dashboard atualizado com sucesso',
-      investimento: novoInvestimento,
-      dashboard: novoDashboard
+      message: 'Investimento criado com sucesso',
+      investimento: {
+        ...novoInvestimento.toObject(),
+        id: novoInvestimento._id
+      },
+      dashboard: {
+        ...novoDashboard.toObject(),
+        _id: novoDashboard._id
+      }
     };
   }
 

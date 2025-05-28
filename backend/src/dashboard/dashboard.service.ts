@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, isValidObjectId } from 'mongoose';
 import { Dashboard, DashboardDocument } from './schemas/dashboard.schema';
 import { PdfService } from './pdf.service';
 
@@ -11,63 +11,137 @@ export class DashboardService {
     private pdfService: PdfService
   ) { }
 
-  async findAll(): Promise<Dashboard[]> {
-    return this.dashboardModel.find().exec();
+  async findAll(): Promise<DashboardDocument[]> {
+    console.log('Debug - Buscando todos os dashboards');
+    try {
+      const dashboards = await this.dashboardModel.find().exec();
+      console.log('Debug - Dashboards encontrados:', {
+        quantidade: dashboards.length,
+        ids: dashboards.map(d => d._id)
+      });
+      return dashboards;
+    } catch (error) {
+      console.error('Debug - Erro ao buscar dashboards:', {
+        error: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
+  }
+
+  async findOne(id: string): Promise<DashboardDocument | null> {
+    try {
+      console.log('Debug - Buscando dashboard por ID:', id);
+      
+      if (!isValidObjectId(id)) {
+        console.error('Debug - ID de dashboard inválido:', id);
+        throw new BadRequestException('ID de dashboard inválido');
+      }
+
+      const dashboard = await this.dashboardModel
+        .findById(id)
+        .exec();
+      
+      console.log('Debug - Resultado da busca:', dashboard ? 'Dashboard encontrado' : 'Dashboard não encontrado');
+
+      if (!dashboard) {
+        return null;
+      }
+
+      console.log('Debug - Dashboard encontrado:', {
+        id: dashboard._id,
+        usuario_id: dashboard.usuario_id,
+        valor_investido: dashboard.valor_investido,
+        tipo_investimento: dashboard.tipo_investimento
+      });
+
+      return dashboard;
+    } catch (error) {
+      console.error('Debug - Erro ao buscar dashboard:', {
+        id,
+        error: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
+  }
+
+  async findByUsuario(usuarioId: string): Promise<DashboardDocument[]> {
+    console.log('Debug - Buscando dashboards do usuário:', usuarioId);
+    try {
+      if (!isValidObjectId(usuarioId)) {
+        console.error('Debug - ID de usuário inválido:', usuarioId);
+        throw new BadRequestException('ID de usuário inválido');
+      }
+
+      const dashboards = await this.dashboardModel
+        .find({ usuario_id: usuarioId })
+        .exec();
+
+      console.log('Debug - Dashboards do usuário encontrados:', {
+        usuarioId,
+        quantidade: dashboards.length,
+        ids: dashboards.map(d => d._id)
+      });
+
+      return dashboards;
+    } catch (error) {
+      console.error('Debug - Erro ao buscar dashboards do usuário:', {
+        usuarioId,
+        error: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
   }
 
   async gerarPdf(id: string): Promise<Buffer> {
-    const dashboard = await this.dashboardModel.findById(id);
-    if (!dashboard) {
-      throw new NotFoundException('Dashboard não encontrado');
-    }
-
-    const valorRendido = dashboard.rendimento.valor_liquido - dashboard.valor_investido;
-
-    const dadosDashboard = {
-      totalInvestido: dashboard.valor_investido,
-      rendimentoMedio: dashboard.rendimento.rentabilidade_anualizada,
-      riscoMedio: dashboard.investimentos[0].risco,
-      distribuicao: [{
-        tipo: dashboard.tipo_investimento,
-        valor: dashboard.valor_investido
-      }],
-      rendimentos: [{
-        banco: dashboard.nome_banco,
-        valor: dashboard.rendimento.rentabilidade_periodo
-      }],
-      comparativo: [{
-        banco: dashboard.nome_banco,
-        investimento: dashboard.tipo_investimento,
-        rendimento: dashboard.rendimento.rentabilidade_periodo,
-        risco: dashboard.investimentos[0].risco,
-        liquidez: dashboard.investimentos[0].liquidez
-      }],
-      detalhes: {
-        valorBruto: dashboard.rendimento.valor_bruto,
-        valorLiquido: dashboard.rendimento.valor_liquido,
-        valorRendido: valorRendido,
-        valorInvestido: dashboard.valor_investido,
-        impostoRenda: dashboard.rendimento.imposto_renda,
-        iof: dashboard.rendimento.iof,
-        outrasTaxas: dashboard.rendimento.outras_taxas,
-        dataInicio: dashboard.data_inicio,
-        dataFim: dashboard.data_fim,
-        diasCorridos: dashboard.dias_corridos,
-        indicadoresMercado: dashboard.indicadores_mercado || {
-          selic: 0,
-          cdi: 0,
-          ipca: 0
-        }
+    try {
+      console.log('Debug - Buscando dashboard para PDF:', id);
+      
+      const dashboard = await this.dashboardModel.findById(id);
+      if (!dashboard) {
+        console.log('Debug - Dashboard não encontrado:', id);
+        throw new NotFoundException('Dashboard não encontrado');
       }
-    };
 
-    console.log('Dados do Dashboard:', {
-      valor_investido: dashboard.valor_investido,
-      valor_liquido: dashboard.rendimento.valor_liquido,
-      valor_rendido: valorRendido
-    });
+      console.log('Debug - Dashboard encontrado, processando dados para PDF');
 
-    return this.pdfService.gerarPdfDashboard(dadosDashboard);
+      // Garantir que todos os campos numéricos existam para evitar erros no PDF
+      const dadosDashboard = {
+        ...dashboard.toObject(),
+        valor_investido: dashboard.valor_investido || 0,
+        valor_atual: dashboard.valor_atual || 0,
+        rendimento: {
+          valor_bruto: dashboard.rendimento?.valor_bruto || 0,
+          valor_liquido: dashboard.rendimento?.valor_liquido || 0,
+          valor_rendido: (dashboard.rendimento?.valor_liquido || 0) - (dashboard.valor_investido || 0),
+          rentabilidade_periodo: dashboard.rendimento?.rentabilidade_periodo || 0,
+          rentabilidade_anualizada: dashboard.rendimento?.rentabilidade_anualizada || 0,
+          imposto_renda: dashboard.rendimento?.imposto_renda || 0,
+          iof: dashboard.rendimento?.iof || 0,
+          outras_taxas: dashboard.rendimento?.outras_taxas || 0
+        },
+        indicadores_mercado: {
+          selic: dashboard.indicadores_mercado?.selic || 0,
+          cdi: dashboard.indicadores_mercado?.cdi || 0,
+          ipca: dashboard.indicadores_mercado?.ipca || 0
+        }
+      };
+
+      console.log('Debug - Iniciando geração do PDF');
+      const buffer = await this.pdfService.gerarPdfDashboard(dadosDashboard);
+      console.log('Debug - PDF gerado com sucesso');
+
+      return buffer;
+    } catch (error) {
+      console.error('Debug - Erro ao gerar PDF:', {
+        id,
+        erro: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
   }
 
   private calcularTotalInvestido(dashboard: Dashboard): number {

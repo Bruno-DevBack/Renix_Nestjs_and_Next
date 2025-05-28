@@ -1,11 +1,10 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://localhost:3333', // URL base da API NestJS (sem prefixo /api)
+    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333/api',
     headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-    },
+        'Accept': 'application/json'
+    }
 });
 
 // Interceptor para adicionar o token em todas as requisições
@@ -14,21 +13,31 @@ api.interceptors.request.use((config) => {
 
     const token = localStorage.getItem('@RenixApp:token');
     
+    console.log('Debug - Headers da requisição:', config.headers);
+    console.log('Debug - Token encontrado:', token ? 'Sim' : 'Não');
+    
     if (token) {
+        // Garantir que o token está sendo enviado corretamente
         config.headers.Authorization = `Bearer ${token}`;
-        // Garante que o Content-Type está definido corretamente
-        if (!(config.data instanceof FormData)) {
-            config.headers['Content-Type'] = 'application/json';
-        }
-        console.log('Token nas headers:', config.headers.Authorization);
+        console.log('Debug - Token adicionado às headers:', config.headers.Authorization);
     } else {
-        console.log('Nenhum token encontrado no localStorage');
+        console.warn('Tentando fazer requisição sem token de autenticação');
     }
 
-    // Remove Content-Type para FormData
+    // Define o Content-Type apenas se não for FormData
     if (config.data instanceof FormData) {
         delete config.headers['Content-Type'];
+    } else {
+        config.headers['Content-Type'] = 'application/json';
     }
+    
+    console.log('Debug - Config final da requisição:', {
+        url: config.url,
+        method: config.method,
+        isFormData: config.data instanceof FormData,
+        headers: config.headers,
+        data: config.data
+    });
 
     return config;
 }, (error) => {
@@ -46,23 +55,22 @@ api.interceptors.response.use(
         }
 
         const { status, config } = error.response;
-        console.error('Erro na requisição:', {
+        console.error('Debug - Erro na requisição:', {
             status,
             url: config.url,
             method: config.method,
-            headers: config.headers,
-            error: error.response.data
+            headers: {
+                Authorization: config.headers.Authorization,
+                'Content-Type': config.headers['Content-Type']
+            },
+            data: error.response.data
         });
 
         // Se o token estiver inválido ou expirado
         if (status === 401) {
-            console.error('Erro de autenticação 401:', error.response.data);
-            return Promise.reject(error);
-        }
-
-        // Para erros específicos, retorna a mensagem do servidor
-        if ([400, 409, 422].includes(status)) {
-            return Promise.reject(new Error(error.response.data.message || 'Erro na operação'));
+            console.error('Debug - Erro de autenticação:', error.response.data);
+            console.error('Debug - Headers da requisição:', config.headers);
+            console.error('Debug - Dados enviados:', config.data);
         }
 
         return Promise.reject(error);

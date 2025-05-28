@@ -10,37 +10,63 @@ class DashboardService {
     private readonly baseUrl = '/dashboard';
 
     public async listarTodos(): Promise<Dashboard[]> {
-        try {
-            const response = await api.get<ApiResponse<Dashboard[]>>('/dashboard');
-            if (response.data && 'data' in response.data && Array.isArray(response.data.data)) {
-                return response.data.data;
-            }
-            console.error('Formato de resposta inválido:', response.data);
-            return [];
-        } catch (error) {
-            console.error('Erro ao buscar dashboards:', error);
-            return [];
-        }
+        const response = await api.get<Dashboard[]>(this.baseUrl);
+        return response.data;
     }
 
-    public async buscarPorId(id: string): Promise<Dashboard | null> {
+    public async buscarPorId(id: string): Promise<Dashboard> {
         try {
+            console.log('Debug - Buscando dashboard:', id);
             const response = await api.get<ApiResponse<Dashboard>>(`${this.baseUrl}/${id}`);
-            if (response.data && 'data' in response.data) {
-                return response.data.data;
+            console.log('Debug - Resposta da API:', response.data);
+            
+            if (!response.data.data) {
+                throw new Error('Dashboard não encontrado');
             }
-            console.error('Formato de resposta inválido:', response.data);
-            return null;
+
+            // Extrair os dados do dashboard da resposta
+            const dashboardData = response.data.data;
+
+            // Garantir que todos os campos numéricos existam
+            const dashboard: Dashboard = {
+                ...dashboardData,
+                valor_investido: dashboardData.valor_investido || 0,
+                valor_atual: dashboardData.valor_atual || 0,
+                valor_projetado: dashboardData.valor_projetado || 0,
+                dias_corridos: dashboardData.dias_corridos || 0,
+                rendimento: {
+                    valor_bruto: dashboardData.rendimento?.valor_bruto || 0,
+                    valor_liquido: dashboardData.rendimento?.valor_liquido || 0,
+                    valor_rendido: (dashboardData.rendimento?.valor_liquido || 0) - (dashboardData.valor_investido || 0),
+                    rentabilidade_periodo: dashboardData.rendimento?.rentabilidade_periodo || 0,
+                    rentabilidade_anualizada: dashboardData.rendimento?.rentabilidade_anualizada || 0,
+                    imposto_renda: dashboardData.rendimento?.imposto_renda || 0,
+                    iof: dashboardData.rendimento?.iof || 0,
+                    outras_taxas: dashboardData.rendimento?.outras_taxas || 0
+                },
+                indicadores_mercado: {
+                    selic: dashboardData.indicadores_mercado?.selic || 0,
+                    cdi: dashboardData.indicadores_mercado?.cdi || 0,
+                    ipca: dashboardData.indicadores_mercado?.ipca || 0
+                },
+                investimentos: dashboardData.investimentos || []
+            };
+
+            console.log('Debug - Dashboard processado:', dashboard);
+            return dashboard;
         } catch (error) {
             console.error('Erro ao buscar dashboard:', error);
-            return null;
+            throw error;
         }
     }
 
     public async gerarPDF(id: string): Promise<Blob> {
         try {
             const response = await api.get(`${this.baseUrl}/${id}/pdf`, {
-                responseType: 'blob'
+                responseType: 'blob',
+                headers: {
+                    'Accept': 'application/pdf'
+                }
             });
             return response.data;
         } catch (error) {
@@ -90,6 +116,21 @@ class DashboardService {
         };
     }): Promise<Dashboard> {
         const response = await api.patch<Dashboard>(`${this.baseUrl}/${id}/filtros`, filtros);
+        return response.data;
+    }
+
+    public async buscarPorUsuario(usuarioId: string): Promise<Dashboard[]> {
+        const response = await api.get<Dashboard[]>(`${this.baseUrl}/usuario/${usuarioId}`);
+        return response.data;
+    }
+
+    public async buscarHistorico(dashboardId: string): Promise<any[]> {
+        const response = await api.get<any[]>(`${this.baseUrl}/${dashboardId}/historico`);
+        return response.data;
+    }
+
+    public async atualizarDados(dashboardId: string): Promise<Dashboard> {
+        const response = await api.post<Dashboard>(`${this.baseUrl}/${dashboardId}/atualizar`);
         return response.data;
     }
 }
