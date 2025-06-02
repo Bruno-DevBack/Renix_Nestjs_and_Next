@@ -29,6 +29,25 @@ export default function InvestmentsPage() {
     return `${valor.toFixed(2)}%`;
   };
 
+  // Função para determinar a cor da borda baseada no risco
+  const getBorderColorByRisk = (risco?: number) => {
+    if (!risco) return 'border-gray-200';
+    switch (risco) {
+      case 1:
+        return 'border-green-200';
+      case 2:
+        return 'border-green-600';
+      case 3:
+        return 'border-yellow-400';
+      case 4:
+        return 'border-orange-500';
+      case 5:
+        return 'border-red-600';
+      default:
+        return 'border-gray-200';
+    }
+  };
+
   // Função auxiliar para calcular o valor rendido
   const calcularValorRendido = (dashboard: Dashboard) => {
     if (!dashboard.rendimento?.valor_liquido || !dashboard.valor_investido) return 0;
@@ -135,19 +154,14 @@ export default function InvestmentsPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {dashboards.map((dashboard) => {
-                // Busca o risco do investimento correspondente
                 const risco = dashboard.investimentos?.find(
                   (inv: { tipo: string; risco: number }) => inv.tipo === dashboard.tipo_investimento
-                )?.risco;
-                const riscoAlto = risco >= 4;
+                )?.risco || 0;
+                const borderColor = getBorderColorByRisk(risco);
                 return (
                   <div
                     key={dashboard._id}
-                    className={`relative p-6 rounded-xl shadow-sm hover:shadow-md transition group ${
-                      riscoAlto
-                        ? 'bg-red-50 border border-red-200'
-                        : 'bg-white'
-                    }`}
+                    className={`relative p-6 rounded-xl shadow-sm hover:shadow-md transition group bg-white border-2 ${borderColor}`}
                   >
                     <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
@@ -202,7 +216,7 @@ export default function InvestmentsPage() {
                         )}
                         <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-1">
                           {dashboard.nome_banco || 'Banco não informado'}
-                          {riscoAlto && (
+                          {risco >= 4 && (
                             <FaExclamationTriangle className="text-red-500" title="Risco elevado! Este investimento pode apresentar grande variação de valor." />
                           )}
                         </h3>
