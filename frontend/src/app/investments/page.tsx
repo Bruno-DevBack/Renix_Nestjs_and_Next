@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { FaEdit, FaFilePdf, FaTrash } from 'react-icons/fa';
+import { FaEdit, FaFilePdf, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { PrivateLayout } from '@/components/PrivateLayout';
 import { dashboardService } from '@/services/dashboardService';
@@ -134,92 +134,108 @@ export default function InvestmentsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {dashboards.map((dashboard) => (
-                <div
-                  key={dashboard._id}
-                  className="relative bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition group"
-                >
-                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/dashboard/${dashboard._id}`);
-                      }}
-                      className="text-gray-400 hover:text-emerald-600 transition"
-                      title="Ver detalhes"
-                    >
-                      <FaEdit size={16} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleGerarPdf(dashboard._id);
-                      }}
-                      className="text-gray-400 hover:text-emerald-600 transition"
-                      title="Gerar PDF"
-                    >
-                      <FaFilePdf size={16} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleExcluir(dashboard);
-                      }}
-                      className="text-gray-400 hover:text-red-600 transition"
-                      title="Excluir"
-                    >
-                      <FaTrash size={16} />
-                    </button>
-                  </div>
-
+              {dashboards.map((dashboard) => {
+                // Busca o risco do investimento correspondente
+                const risco = dashboard.investimentos?.find(
+                  (inv: { tipo: string; risco: number }) => inv.tipo === dashboard.tipo_investimento
+                )?.risco;
+                const riscoAlto = risco >= 4;
+                return (
                   <div
-                    onClick={() => router.push(`/dashboard/${dashboard._id}`)}
-                    className="cursor-pointer"
+                    key={dashboard._id}
+                    className={`relative p-6 rounded-xl shadow-sm hover:shadow-md transition group ${
+                      riscoAlto
+                        ? 'bg-red-50 border border-red-200'
+                        : 'bg-white'
+                    }`}
                   >
-                    <div className="flex items-center gap-2 mb-3">
-                      {dashboard.logoBase64 ? (
-                        <img
-                          src={dashboard.logoBase64}
-                          alt={`Logo ${dashboard.nome_banco}`}
-                          className="w-8 h-8 rounded-full object-contain"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-500">
-                            {dashboard.nome_banco?.charAt(0)?.toUpperCase() || 'B'}
-                          </span>
-                        </div>
-                      )}
-                      <h3 className="text-lg font-semibold text-gray-900">{dashboard.nome_banco || 'Banco não informado'}</h3>
-                      <span className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 rounded-full">
-                        {dashboard.tipo_investimento || 'Tipo não informado'}
-                      </span>
+                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/dashboard/${dashboard._id}`);
+                        }}
+                        className="text-gray-400 hover:text-emerald-600 transition"
+                        title="Ver detalhes"
+                      >
+                        <FaEdit size={16} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGerarPdf(dashboard._id);
+                        }}
+                        className="text-gray-400 hover:text-emerald-600 transition"
+                        title="Gerar PDF"
+                      >
+                        <FaFilePdf size={16} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExcluir(dashboard);
+                        }}
+                        className="text-gray-400 hover:text-red-600 transition"
+                        title="Excluir"
+                      >
+                        <FaTrash size={16} />
+                      </button>
                     </div>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm text-gray-500">Valor Investido</p>
-                        <p className="text-2xl font-bold text-emerald-600">
-                          {formatarMoeda(dashboard.valor_investido)}
-                        </p>
+
+                    <div
+                      onClick={() => router.push(`/dashboard/${dashboard._id}`)}
+                      className="cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 mb-3">
+                        {dashboard.logoBase64 ? (
+                          <img
+                            src={dashboard.logoBase64}
+                            alt={`Logo ${dashboard.nome_banco}`}
+                            className="w-8 h-8 rounded-full object-contain"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                            <span className="text-sm font-medium text-gray-500">
+                              {dashboard.nome_banco?.charAt(0)?.toUpperCase() || 'B'}
+                            </span>
+                          </div>
+                        )}
+                        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-1">
+                          {dashboard.nome_banco || 'Banco não informado'}
+                          {riscoAlto && (
+                            <FaExclamationTriangle className="text-red-500" title="Risco elevado! Este investimento pode apresentar grande variação de valor." />
+                          )}
+                        </h3>
+                        <span className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 rounded-full">
+                          {dashboard.tipo_investimento || 'Tipo não informado'}
+                        </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-3">
                         <div>
-                          <p className="text-sm text-gray-500">Rendimento</p>
-                          <p className="text-lg font-semibold text-emerald-600">
-                            {formatarPorcentagem(dashboard.rendimento?.rentabilidade_anualizada)}
+                          <p className="text-sm text-gray-500">Valor Investido</p>
+                          <p className="text-2xl font-bold text-emerald-600">
+                            {formatarMoeda(dashboard.valor_investido)}
                           </p>
                         </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Valor Rendido</p>
-                          <p className="text-lg font-semibold text-emerald-600">
-                            {formatarMoeda(calcularValorRendido(dashboard))}
-                          </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <p className="text-sm text-gray-500">Rendimento</p>
+                            <p className="text-lg font-semibold text-emerald-600">
+                              {formatarPorcentagem(dashboard.rendimento?.rentabilidade_anualizada)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Valor Rendido</p>
+                            <p className="text-lg font-semibold text-emerald-600">
+                              {formatarMoeda(calcularValorRendido(dashboard))}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

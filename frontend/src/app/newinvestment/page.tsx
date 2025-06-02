@@ -8,6 +8,9 @@ import { investimentosService } from '@/services/investimentosService';
 import { bancosService } from '@/services/bancosService';
 import { CreateInvestimentoDto, Banco } from '@/types';
 import { format } from 'date-fns';
+import Select from 'react-select';
+import { FaQuestion, FaQuestionCircle, FaExclamationTriangle } from 'react-icons/fa';
+import { Tooltip } from 'react-tooltip';
 
 export default function NewInvestmentPage() {
     const router = useRouter();
@@ -152,8 +155,8 @@ export default function NewInvestmentPage() {
         }
     };
 
-    const handleTipoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const tipoSelecionado = e.target.value;
+    const handleTipoChange = (option: any) => {
+        const tipoSelecionado = option?.value;
         const tipoInvestimento = tiposInvestimento.find(t => t.tipo === tipoSelecionado);
         
         if (tipoInvestimento) {
@@ -228,6 +231,18 @@ export default function NewInvestmentPage() {
         }
     };
 
+    const investmentOptions = tiposInvestimento.map((tipo) => ({
+        value: tipo.tipo,
+        label: (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+                {tipo.nome}
+                <span data-tooltip-id="tipo-tooltip" data-tooltip-content={tipo.descricao} style={{ marginLeft: 8 }}>
+                    <FaQuestionCircle style={{ color: '#888', cursor: 'pointer' }} />
+                </span>
+            </div>
+        ),
+    }));
+
     return (
         <PrivateLayout>
             <main className="flex-grow px-6 py-8">
@@ -276,27 +291,34 @@ export default function NewInvestmentPage() {
                             </select>
                         </div>
 
-                        {/* Tipo de Investimento */}
+                        {/* Tipo de Investimento com react-select */}
                         {investimento.banco_id && (
                             <div>
                                 <label htmlFor="tipo" className="block text-sm font-medium text-gray-700 mb-1">
                                     Tipo de Investimento
                                 </label>
-                                <select
+                                <Select
                                     id="tipo"
                                     name="tipo"
-                                    value={investimento.tipo_investimento}
+                                    options={investmentOptions}
+                                    value={investmentOptions.find(opt => opt.value === investimento.tipo_investimento) || null}
                                     onChange={handleTipoChange}
-                                    disabled={loading || !investimento.banco_id}
-                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100"
-                                >
-                                    <option value="">Selecione o tipo</option>
-                                    {tiposInvestimento.map((tipo) => (
-                                        <option key={tipo.tipo} value={tipo.tipo}>
-                                            {tipo.nome}
-                                        </option>
-                                    ))}
-                                </select>
+                                    isDisabled={loading || !investimento.banco_id}
+                                    className="react-select-container"
+                                    classNamePrefix="react-select"
+                                    placeholder="Selecione o tipo"
+                                />
+                                <Tooltip
+                                    id="tipo-tooltip"
+                                    place="right"
+                                    className="!z-[9999] !rounded-lg !bg-gray-900 !text-white !px-4 !py-2 !shadow-lg"
+                                    style={{
+                                        fontSize: '1rem',
+                                        maxWidth: 260,
+                                        whiteSpace: 'pre-line',
+                                        border: '1px solid #4ade80',
+                                    }}
+                                />
                             </div>
                         )}
 
@@ -382,7 +404,12 @@ export default function NewInvestmentPage() {
                                     </div>
                                     <div>
                                         <p className="text-gray-500">Nível de Risco</p>
-                                        <p className="font-medium">{investimento.caracteristicas.risco}/5</p>
+                                        <p className="font-medium flex items-center gap-2">
+                                            {investimento.caracteristicas.risco}/5
+                                            {investimento.caracteristicas.risco >= 4 && (
+                                                <FaExclamationTriangle className="text-red-500" title="Risco elevado!" />
+                                            )}
+                                        </p>
                                     </div>
                                     <div>
                                         <p className="text-gray-500">Liquidez</p>

@@ -215,6 +215,14 @@ export interface Dashboard {
         ipca: number;
     };
     alertas?: string[];
+    investimentos?: Array<{
+        valor: number;
+        rendimento: number;
+        risco: number;
+        tipo: string;
+        banco: string;
+        liquidez: number;
+    }>;
     created_at?: string;
     updated_at?: string;
 }
