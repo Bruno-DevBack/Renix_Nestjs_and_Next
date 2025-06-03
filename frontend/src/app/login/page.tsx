@@ -53,20 +53,20 @@ export default function LoginPage() {
       // O redirecionamento é feito automaticamente pelo AuthContext
     } catch (error: any) {
       console.error('Erro no login:', error);
+      const mensagem = error.response?.data?.message || '';
+      
       if (error.response?.status === 401) {
-        setMensagem('O usuário não existe');
-        setTimeout(() => {
-          router.push('/cadastro');
-        }, 2000); // Aguarda 2 segundos antes de redirecionar
-      } else if (error.response?.status === 400) {
-        const mensagem = error.response.data.message;
-        if (Array.isArray(mensagem)) {
-          setMensagem(mensagem.join('. '));
+        if (mensagem.toLowerCase().includes('senha incorreta')) {
+          setMensagem(mensagem);
+          setSenha(''); // Limpa o campo de senha para nova tentativa
         } else {
-          setMensagem(mensagem || 'Email ou senha incorretos');
+          setMensagem('Usuário não encontrado. Redirecionando para cadastro...');
+          setTimeout(() => {
+            router.push('/cadastro');
+          }, 2000);
         }
       } else {
-        setMensagem(error.message || 'Erro ao fazer login. Tente novamente.');
+        setMensagem(error.response?.data?.message || 'Erro ao fazer login. Por favor, tente novamente mais tarde.');
       }
     } finally {
       setIsLoading(false);

@@ -150,12 +150,18 @@ export class UsuariosService {
     }).populate('dashboards');
 
     if (!usuario) {
-      throw new UnauthorizedException('Credenciais inválidas');
+      throw new UnauthorizedException({
+        message: 'Usuário não encontrado',
+        statusCode: 401
+      });
     }
 
     const senhaCorreta = await usuario.matchPassword(loginUsuarioDto.senha_usuario);
     if (!senhaCorreta) {
-      throw new UnauthorizedException('Credenciais inválidas');
+      throw new UnauthorizedException({
+        message: 'Senha incorreta',
+        statusCode: 403
+      });
     }
 
     // Gera o token usando o AuthService
