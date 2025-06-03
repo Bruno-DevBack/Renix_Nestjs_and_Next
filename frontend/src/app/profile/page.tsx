@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function ProfilePage() {
   const { usuario, signOut } = useAuth();
 
-
   if (!usuario) {
     return null;
   }
@@ -20,13 +19,13 @@ export default function ProfilePage() {
           <div className="w-full max-w-sm bg-white rounded-2xl shadow-md p-6 flex flex-col items-center space-y-6">
             <div className="w-24 h-24 rounded-full bg-gray-100 overflow-hidden border border-gray-300">
               <img
-                src={usuario?.fotoPerfilBase64 || "/avatar.png"}
+                src={usuario.fotoPerfilBase64 || "/avatar.png"}
                 alt="Foto de perfil"
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = "/avatar.png";
-                  target.onerror = null; // Previne loop infinito
+                  target.onerror = null;
                 }}
               />
             </div>
@@ -63,11 +62,9 @@ export default function ProfilePage() {
               >
                 SAIR
               </button>
-
             </div>
           </div>
         </main>
-
 
         {/* Rodapé */}
         <footer className="bg-white mt-12 shadow-sm">

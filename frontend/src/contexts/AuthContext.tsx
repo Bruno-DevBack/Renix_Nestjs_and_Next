@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { authService } from '@/services/authService';
-import { Usuario, AuthContextData } from '@/types';
+import { Usuario, AuthContextData, UpdateUsuarioDto } from '@/types';
 import api from '@/lib/api';
 import axios from 'axios';
 import { jwtDecode } from "jwt-decode";
@@ -148,19 +148,84 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const updateUserData = async (data: Partial<Usuario>) => {
+    const updateUserData = async (data: UpdateUsuarioDto) => {
         if (!usuario?.id) throw new Error('Usuário não encontrado');
 
         try {
-            const updatedUser = await authService.updateProfile(data);
-            setUsuario(updatedUser);
-            localStorage.setItem('@RenixApp:user', JSON.stringify(updatedUser));
-            return updatedUser;
+            // A chamada ao authService.updateProfile ainda espera Partial<Usuario>
+            // Precisamos garantir que apenas os campos permitidos por Partial<Usuario> sejam passados
+            const dataToSend: Partial<Usuario> = {};
+            if (data.nome_usuario !== undefined) dataToSend.nome_usuario = data.nome_usuario;
+            if (data.email_usuario !== undefined) dataToSend.email_usuario = data.email_usuario;
+            // Não passamos fotoPerfilBase64 aqui, pois é tratado por updateProfileWithPhoto
+            // if (data.fotoPerfilBase64 !== undefined) dataToSend.fotoPerfilBase64 = data.fotoPerfilBase64;
+
+            const updatedUser = await authService.updateProfile(dataToSend);
+            return updatedUser; // Retorna os dados atualizados
         } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === 401) {
                 signOut();
             }
             throw error;
+        }
+    };
+
+    const updateUser = (user: Usuario) => {
+        setUsuario(user);
+        localStorage.setItem('@RenixApp:user', JSON.stringify(user));
+    };
+
+    const updateProfileWithPhoto = async (
+        data: UpdateUsuarioDto,
+        file: File | null
+    ): Promise<Usuario> => {
+        if (!usuario?.id) throw new Error('Usuário não encontrado');
+        setLoading(true);
+        let finalUser = { ...usuario }; // Começa com os dados atuais como fallback
+
+        try {
+            // 1. Se houver um arquivo, faz o upload. A resposta já deve conter o usuário atualizado (incluindo foto).
+            if (file) {
+                // authService.uploadProfilePhoto agora apenas retorna o usuário atualizado do backend
+                const photoUpdateResult = await authService.uploadProfilePhoto(usuario.id, file);
+                finalUser = photoUpdateResult; // Usa diretamente o resultado do upload
+            } else if (data.fotoPerfilBase64 === null && usuario.fotoPerfilBase64) {
+                 // Se fotoPerfilBase64 é explicitamente null nos dados E o usuário tinha foto, remove.
+                 // authService.removeProfilePhoto() também apenas retorna o usuário atualizado.
+                 const removePhotoResult = await authService.removeProfilePhoto();
+                 finalUser = removePhotoResult; // Usa diretamente o resultado da remoção
+            }
+
+            // 2. Atualiza dados de texto (nome, email) se forem diferentes e não foram atualizados pelo upload/remoção
+            // Usamos o objeto finalUser que já pode ter sido atualizado pela foto
+            const textDataToUpdate: Partial<Usuario> = {};
+            if (data.nome_usuario !== undefined && data.nome_usuario !== finalUser.nome_usuario) {
+                textDataToUpdate.nome_usuario = data.nome_usuario;
+            }
+            if (data.email_usuario !== undefined && data.email_usuario !== finalUser.email_usuario) {
+                 textDataToUpdate.email_usuario = data.email_usuario;
+            }
+
+            if (Object.keys(textDataToUpdate).length > 0) {
+                 const textUpdateResult = await authService.updateProfile(textDataToUpdate);
+                 // Mescla o resultado da atualização de texto no objeto finalUser
+                 finalUser = { ...finalUser, ...textUpdateResult };
+            }
+
+            // 3. Atualiza o estado global do contexto e o localStorage com os dados mais recentes e corretos
+            // updateService(finalUser); // Erro de digitação anterior, o correto é updateUser
+            updateUser(finalUser); // Chama o método que atualiza o contexto e o localStorage
+
+            return finalUser; // Retorna o usuário final atualizado
+
+        } catch (error) {
+            console.error('Erro ao atualizar perfil (AuthContext):', error);
+             if (axios.isAxiosError(error) && error.response?.status === 401) {
+                 signOut();
+             }
+            throw error; // Propaga o erro para quem chamou
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -171,6 +236,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 signIn,
                 signOut,
                 updateUserData,
+                updateUser,
+                updateProfileWithPhoto: (
+                    data: UpdateUsuarioDto,
+                    file: File | null
+                ) => updateProfileWithPhoto(data, file),
                 isAuthenticated: !!usuario,
                 loading
             }}

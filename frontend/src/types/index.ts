@@ -33,6 +33,7 @@ export interface UpdateUsuarioDto {
     email_usuario?: string;
     senha_usuario?: string;
     telefone_usuario?: string;
+    fotoPerfilBase64?: string | null;
 }
 
 export interface AuthResponse {
@@ -49,7 +50,12 @@ export interface AuthContextData {
     usuario: Usuario | null;
     signIn: (email: string, senha: string) => Promise<void>;
     signOut: () => void;
-    updateUserData: (data: Partial<Usuario>) => Promise<Usuario>;
+    updateUserData: (data: UpdateUsuarioDto) => Promise<Usuario>;
+    updateUser: (user: Usuario) => void;
+    updateProfileWithPhoto: (
+        data: UpdateUsuarioDto,
+        file: File | null
+    ) => Promise<Usuario>;
     isAuthenticated: boolean;
     loading: boolean;
 }

@@ -184,7 +184,6 @@ class AuthService {
             );
 
             const updatedUser = response.data.data;
-            this.setUser(updatedUser);
             return updatedUser;
         } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -256,7 +255,6 @@ class AuthService {
             );
 
             const updatedUser = response.data;
-            this.setUser(updatedUser);
             return updatedUser;
         } catch (error) {
             console.error('Erro no upload da foto:', error);
@@ -293,7 +291,6 @@ class AuthService {
         );
 
         const updatedUser = response.data.data;
-        this.setUser(updatedUser);
         return updatedUser;
     }
 }
