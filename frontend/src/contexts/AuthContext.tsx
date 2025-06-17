@@ -134,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUsuario(usuario);
             localStorage.setItem('@RenixApp:user', JSON.stringify(usuario));
 
-            router.replace('/profile');
+            router.replace('/investments');
         } catch (error) {
             console.error('Erro no login:', error);
             throw error;

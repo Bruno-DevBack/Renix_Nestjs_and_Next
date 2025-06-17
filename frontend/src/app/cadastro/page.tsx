@@ -11,6 +11,7 @@ export default function CadastroPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showTermosModal, setShowTermosModal] = useState(false);
 
   // Estados para os campos do formulário
   const [nome, setNome] = useState("");
@@ -52,6 +53,15 @@ export default function CadastroPage() {
   const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formattedValue = formatTelefone(e.target.value);
     setTelefone(formattedValue);
+  };
+
+  const openTermosModal = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowTermosModal(true);
+  };
+
+  const closeTermosModal = () => {
+    setShowTermosModal(false);
   };
 
   // Função para lidar com o envio do formulário
@@ -281,7 +291,7 @@ export default function CadastroPage() {
               disabled={carregando}
             />
             <label htmlFor="t_priva" className="text-sm text-gray-700">
-              Aceito os <a href="#" className="underline text-emerald-600">Termos de Uso</a> e a <a href="#" className="underline text-emerald-600">Política de Privacidade</a>.
+              Aceito os <a href="#" className="underline text-emerald-600" onClick={openTermosModal}>Termos de Uso</a> e a <a href="#" className="underline text-emerald-600">Política de Privacidade</a>.
             </label>
           </div>
 
@@ -312,6 +322,94 @@ export default function CadastroPage() {
         {mensagem && (
           <div className={`text-center mt-4 text-sm ${mensagem.includes("sucesso") ? "text-emerald-600" : "text-red-600"}`}>
             {mensagem}
+          </div>
+        )}
+
+        {/* Modal de Termos de Uso */}
+        {showTermosModal && (
+          <div 
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={closeTermosModal}
+          >
+            <div 
+              className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-xl border border-gray-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header do Modal */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 className="text-xl font-semibold text-gray-900">Termos de Uso</h3>
+                <button
+                  onClick={closeTermosModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {/* Conteúdo do Modal */}
+              <div className="p-6 overflow-y-auto max-h-[60vh]">
+                <div className="space-y-4 text-sm text-gray-700 leading-relaxed">
+                  <h4 className="font-semibold text-gray-900 text-base">1. Aceitação dos Termos</h4>
+                  <p>
+                    Ao acessar e usar a plataforma Renix, você concorda em cumprir e estar vinculado a estes Termos de Uso. 
+                    Se você não concordar com qualquer parte destes termos, não deve usar nossos serviços.
+                  </p>
+                  <h4 className="font-semibold text-gray-900 text-base">2. Descrição do Serviço</h4>
+                  <p>
+                    A Renix é uma plataforma educacional que oferece ferramentas para simulação e análise de investimentos. 
+                    Nossos serviços incluem:
+                  </p>
+                  <ul className="list-disc list-inside ml-4 space-y-1">
+                    <li>Simulação de investimentos em diferentes bancos digitais</li>
+                    <li>Análise comparativa de rendimentos</li>
+                    <li>Visualização de projeções financeiras</li>
+                    <li>Educação sobre conceitos de investimento</li>
+                  </ul>
+                  <h4 className="font-semibold text-gray-900 text-base">3. Uso Responsável</h4>
+                  <p>
+                    Você concorda em usar a plataforma apenas para fins educacionais e de planejamento financeiro. 
+                    Não garantimos lucros ou resultados específicos, e você é responsável por suas próprias decisões de investimento.
+                  </p>
+                  <h4 className="font-semibold text-gray-900 text-base">4. Privacidade e Dados</h4>
+                  <p>
+                    Coletamos e processamos seus dados pessoais conforme nossa Política de Privacidade. 
+                    Você concorda com a coleta e uso de informações conforme descrito.
+                  </p>
+                  <h4 className="font-semibold text-gray-900 text-base">5. Limitações de Responsabilidade</h4>
+                  <p>
+                    A Renix não se responsabiliza por perdas financeiras decorrentes de decisões de investimento. 
+                    As simulações são baseadas em dados históricos e não garantem resultados futuros.
+                  </p>
+                  <h4 className="font-semibold text-gray-900 text-base">6. Modificações</h4>
+                  <p>
+                    Reservamo-nos o direito de modificar estes termos a qualquer momento. 
+                    Alterações serão comunicadas através da plataforma.
+                  </p>
+                  <h4 className="font-semibold text-gray-900 text-base">7. Contato</h4>
+                  <p>
+                    Para dúvidas sobre estes termos, entre em contato conosco através do email: 
+                    <span className="text-emerald-600"> renixcorporate@gmail.com</span>
+                  </p>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
+                    <p className="text-yellow-800 text-xs">
+                      <strong>⚠️ Aviso Importante:</strong> Esta plataforma é educacional. 
+                      Consulte um profissional de investimentos antes de tomar decisões financeiras. 
+                      Rentabilidades passadas não garantem resultados futuros.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {/* Footer do Modal */}
+              <div className="flex justify-end p-6 border-t border-gray-200">
+                <button
+                  onClick={closeTermosModal}
+                  className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                >
+                  Entendi
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </section>

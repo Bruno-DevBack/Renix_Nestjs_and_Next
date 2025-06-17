@@ -16,13 +16,14 @@ import {
 import { AuthGuard } from '@/components/AuthGuard'
 
 const navigation = [
-  { name: 'Sobre', href: '#', current: false },
-  { name: 'Serviços', href: '#', current: false },
+  { name: 'Sobre', href: '#sobre', current: false },
+  { name: 'Serviços', href: '#servicos', current: false },
   { name: 'Contato', href: '#', current: false }
 ]
 
 export default function Home() {
   const [isOpen, setIsOpen] = useState(false)
+  const [showNotification, setShowNotification] = useState(false)
 
   // Fecha o menu se redimensionar para largura >= 640px
   useEffect(() => {
@@ -36,8 +37,41 @@ export default function Home() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  // Função para copiar email
+  const copyEmail = async () => {
+    const email = "renixcorporate@gmail.com" // Email da Renix
+    
+    try {
+      await navigator.clipboard.writeText(email)
+      setShowNotification(true)
+      
+      // Remove a notificação após 3 segundos
+      setTimeout(() => {
+        setShowNotification(false)
+      }, 3000)
+    } catch (err) {
+      console.error("Erro ao copiar email:", err)
+      alert("Erro ao copiar email. Tente novamente.")
+    }
+  }
+
+  // Função para lidar com cliques nos links de navegação
+  const handleNavigationClick = (item: any, e: React.MouseEvent) => {
+    if (item.name === 'Contato') {
+      e.preventDefault()
+      copyEmail()
+    }
+  }
+
   return (
     <AuthGuard>
+      {/* Notificação de email copiado */}
+      {showNotification && (
+        <div className="fixed top-20 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 notification-slide">
+          Email copiado com sucesso!
+        </div>
+      )}
+
       {/* Navbar */}
       <Disclosure
         as="nav"
@@ -66,7 +100,8 @@ export default function Home() {
                       <a
                         key={item.name}
                         href={item.href}
-                        className="text-black-800 hover:text-black-200 font-bold text-lg"
+                        onClick={(e) => handleNavigationClick(item, e)}
+                        className="text-black-800 hover:text-black-200 font-bold text-lg cursor-pointer"
                       >
                         {item.name}
                       </a>
@@ -104,7 +139,8 @@ export default function Home() {
                     <a
                       key={item.name}
                       href={item.href}
-                      className="flex items-center gap-3 text-black font-bold py-2 border-b-2 border-gray-400 w-full"
+                      onClick={(e) => handleNavigationClick(item, e)}
+                      className="flex items-center gap-3 text-black font-bold py-2 border-b-2 border-gray-400 w-full cursor-pointer"
                     >
                       {item.name === 'Sobre' && (
                         <InformationCircleIcon className="h-5 w-5 text-gray-700" />
@@ -152,7 +188,7 @@ export default function Home() {
       </main>
 
       {/* Seção verde fora do container */}
-      <section className="w-full bg-[#028264] mt-36 py-12 px-4">
+      <section id="servicos" className="w-full bg-[#028264] mt-36 py-12 px-4">
         <div className="mx-auto text-white text-center">
           <h2 className="text-3xl font-bold">O que oferecemos?</h2>
           <div className="flex flex-col md:flex-row justify-center items-center gap-x-12 lg:gap-x-[200px] mt-16 gap-y-12">
@@ -187,7 +223,7 @@ export default function Home() {
       </section>
 
       {/* Seção Branca fora do container */}
-      <section className="w-full bg-white">
+      <section id="sobre" className="w-full bg-white">
         <div className="flex flex-col-reverse md:flex-row items-center justify-between">
           {/* Imagem */}
           <div className="w-full md:w-1/2">

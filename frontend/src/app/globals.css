@@ -7,6 +7,26 @@
   --foreground: #171717;
 }
 
+/* Rolagem suave para âncoras */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Animação para notificação */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notification-slide {
+  animation: slideIn 0.3s ease-out;
+}
 
 @media (prefers-color-scheme: dark) {
   :root {

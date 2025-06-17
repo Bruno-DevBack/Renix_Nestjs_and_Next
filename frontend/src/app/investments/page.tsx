@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { FaEdit, FaFilePdf, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
+import { FaEdit, FaFilePdf, FaTrash, FaExclamationTriangle, FaInfoCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { PrivateLayout } from '@/components/PrivateLayout';
 import { dashboardService } from '@/services/dashboardService';
@@ -16,6 +16,7 @@ export default function InvestmentsPage() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
   const [dashboardParaExcluir, setDashboardParaExcluir] = useState<Dashboard | null>(null);
+  const [showInvestmentInfo, setShowInvestmentInfo] = useState(false);
 
   // Função auxiliar para formatar valores monetários
   const formatarMoeda = (valor?: number) => {
@@ -75,6 +76,13 @@ export default function InvestmentsPage() {
     fetchDashboards();
   }, []);
 
+  // Expande automaticamente as informações se não há investimentos
+  useEffect(() => {
+    if (!loading && dashboards.length === 0) {
+      setShowInvestmentInfo(true);
+    }
+  }, [loading, dashboards.length]);
+
   const handleGerarPdf = async (id: string) => {
     try {
       const blob = await dashboardService.gerarPDF(id);
@@ -128,6 +136,109 @@ export default function InvestmentsPage() {
             >
               <span>Novo Investimento</span>
             </button>
+          </div>
+
+          {/* Componente de Informações sobre Investimentos */}
+          <div className="mb-6">
+            <button
+              onClick={() => setShowInvestmentInfo(!showInvestmentInfo)}
+              className="w-full bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-200 rounded-lg p-4 hover:shadow-md transition-all duration-200"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FaInfoCircle className="text-emerald-600 text-xl" />
+                  <div className="text-left">
+                    <h3 className="font-semibold text-gray-900">Dicas sobre Investimentos</h3>
+                    <p className="text-sm text-gray-600">Aprenda conceitos básicos para investir com segurança</p>
+                  </div>
+                </div>
+                {showInvestmentInfo ? (
+                  <FaChevronUp className="text-emerald-600" />
+                ) : (
+                  <FaChevronDown className="text-emerald-600" />
+                )}
+              </div>
+            </button>
+
+            {showInvestmentInfo && (
+              <div className="mt-4 bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Conceitos Básicos */}
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                      Conceitos Básicos
+                    </h4>
+                    <div className="space-y-3 text-sm text-gray-700">
+                      <div>
+                        <strong>Rentabilidade:</strong> Percentual de retorno sobre o valor investido.
+                      </div>
+                      <div>
+                        <strong>Liquidez:</strong> Facilidade de converter o investimento em dinheiro.
+                      </div>
+                      <div>
+                        <strong>Risco:</strong> Possibilidade de perda do capital investido.
+                      </div>
+                      <div>
+                        <strong>Diversificação:</strong> Distribuir investimentos para reduzir riscos.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tipos de Investimento */}
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      Tipos de Investimento
+                    </h4>
+                    <div className="space-y-3 text-sm text-gray-700">
+                      <div>
+                        <strong>Renda Fixa:</strong> Retorno previsível, menor risco (CDB, LCI, LCA).
+                      </div>
+                      <div>
+                        <strong>Renda Variável:</strong> Retorno variável, maior risco (ações, FIIs).
+                      </div>
+                      <div>
+                        <strong>Fundos:</strong> Investimento coletivo gerenciado por especialistas.
+                      </div>
+                      <div>
+                        <strong>Previdência:</strong> Planejamento para aposentadoria.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dicas de Segurança */}
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    Dicas de Segurança
+                  </h4>
+                  <div className="grid md:grid-cols-3 gap-4 text-sm text-gray-700">
+                    <div className="bg-orange-50 p-3 rounded-lg">
+                      <strong className="text-orange-700">💰 Invista o que pode perder</strong>
+                      <p className="mt-1">Nunca invista dinheiro essencial para suas necessidades básicas.</p>
+                    </div>
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <strong className="text-blue-700">📊 Diversifique</strong>
+                      <p className="mt-1">Não coloque todos os ovos na mesma cesta. Espalhe seus investimentos.</p>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <strong className="text-green-700">⏰ Pense no longo prazo</strong>
+                      <p className="mt-1">Investimentos de qualidade geram resultados ao longo do tempo.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Aviso Legal */}
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-600 text-center">
+                    <strong>⚠️ Aviso:</strong> Esta plataforma é educacional. Consulte um profissional de investimentos 
+                    antes de tomar decisões financeiras. Rentabilidades passadas não garantem resultados futuros.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {loading ? (
