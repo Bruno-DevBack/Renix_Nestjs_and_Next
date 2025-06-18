@@ -8,6 +8,7 @@ import { PrivateLayout } from '@/components/PrivateLayout';
 import { dashboardService } from '@/services/dashboardService';
 import { Dashboard } from '@/types';
 import { Dialog } from '@headlessui/react';
+import { PhoneIcon } from '@heroicons/react/24/outline';
 
 export default function InvestmentsPage() {
   const router = useRouter();
@@ -17,6 +18,9 @@ export default function InvestmentsPage() {
   const [erro, setErro] = useState('');
   const [dashboardParaExcluir, setDashboardParaExcluir] = useState<Dashboard | null>(null);
   const [showInvestmentInfo, setShowInvestmentInfo] = useState(false);
+  const [showSobreModal, setShowSobreModal] = useState(false);
+  const [showContatoModal, setShowContatoModal] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
 
   // Função auxiliar para formatar valores monetários
   const formatarMoeda = (valor?: number) => {
@@ -53,6 +57,64 @@ export default function InvestmentsPage() {
   const calcularValorRendido = (dashboard: Dashboard) => {
     if (!dashboard.rendimento?.valor_liquido || !dashboard.valor_investido) return 0;
     return dashboard.rendimento.valor_liquido - dashboard.valor_investido;
+  };
+
+  const copyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText('renixcorporate@gmail.com');
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
+    } catch (err) {
+      console.error('Erro ao copiar email:', err);
+    }
+  };
+
+  // Componente do Modal
+  const Modal = ({ isOpen, onClose, title, children }: {
+    isOpen: boolean;
+    onClose: () => void;
+    title: string;
+    children: React.ReactNode;
+  }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-xl border border-gray-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header do Modal */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          {/* Conteúdo do Modal */}
+          <div className="p-6 overflow-y-auto max-h-[60vh]">
+            {children}
+          </div>
+          {/* Footer do Modal */}
+          <div className="flex justify-end p-6 border-t border-gray-200">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-[#028264] text-white rounded-lg hover:bg-[#026d54] transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const fetchDashboards = async () => {
@@ -233,7 +295,7 @@ export default function InvestmentsPage() {
                 {/* Aviso Legal */}
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-600 text-center">
-                    <strong>⚠️ Aviso:</strong> Esta plataforma é educacional. Consulte um profissional de investimentos 
+                    <strong>⚠️ Aviso:</strong> Esta plataforma é educacional. Consulte um profissional de investimentos
                     antes de tomar decisões financeiras. Rentabilidades passadas não garantem resultados futuros.
                   </p>
                 </div>
@@ -401,6 +463,13 @@ export default function InvestmentsPage() {
           </div>
         </Dialog>
       </div>
+
+      {/* Notificação de email copiado */}
+      {showNotification && (
+        <div className="fixed top-20 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 notification-slide">
+          Email copiado com sucesso!
+        </div>
+      )}
     </PrivateLayout>
   );
 }

@@ -65,9 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
                 const token = localStorage.getItem('@RenixApp:token');
                 const storedUserStr = localStorage.getItem('@RenixApp:user');
-                
+
                 console.log('Verificando autenticação...');
-                
+
                 if (token && storedUserStr && isTokenValid(token)) {
                     console.log('Token válido encontrado');
                     const storedUser = JSON.parse(storedUserStr);
@@ -80,7 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 } else {
                     console.log('Token inválido ou expirado');
                     setAuthToken(null);
-                    
+                    setUsuario(null);
+
                     if (!isPublicRoute(pathname)) {
                         router.replace('/login');
                     }
@@ -88,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } catch (error) {
                 console.error('Erro ao carregar dados do usuário:', error);
                 setAuthToken(null);
+                setUsuario(null);
                 if (!isPublicRoute(pathname)) {
                     router.replace('/login');
                 }
@@ -143,8 +145,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signOut = () => {
         setAuthToken(null);
-        if (pathname !== '/login') {
-            router.replace('/login');
+        setUsuario(null);
+        localStorage.removeItem('@RenixApp:token');
+        localStorage.removeItem('@RenixApp:user');
+
+        // Redireciona para a página padrão
+        if (pathname !== '/') {
+            router.replace('/');
         }
     };
 
@@ -190,10 +197,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const photoUpdateResult = await authService.uploadProfilePhoto(usuario.id, file);
                 finalUser = photoUpdateResult; // Usa diretamente o resultado do upload
             } else if (data.fotoPerfilBase64 === null && usuario.fotoPerfilBase64) {
-                 // Se fotoPerfilBase64 é explicitamente null nos dados E o usuário tinha foto, remove.
-                 // authService.removeProfilePhoto() também apenas retorna o usuário atualizado.
-                 const removePhotoResult = await authService.removeProfilePhoto();
-                 finalUser = removePhotoResult; // Usa diretamente o resultado da remoção
+                // Se fotoPerfilBase64 é explicitamente null nos dados E o usuário tinha foto, remove.
+                // authService.removeProfilePhoto() também apenas retorna o usuário atualizado.
+                const removePhotoResult = await authService.removeProfilePhoto();
+                finalUser = removePhotoResult; // Usa diretamente o resultado da remoção
             }
 
             // 2. Atualiza dados de texto (nome, email) se forem diferentes e não foram atualizados pelo upload/remoção
@@ -203,13 +210,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 textDataToUpdate.nome_usuario = data.nome_usuario;
             }
             if (data.email_usuario !== undefined && data.email_usuario !== finalUser.email_usuario) {
-                 textDataToUpdate.email_usuario = data.email_usuario;
+                textDataToUpdate.email_usuario = data.email_usuario;
             }
 
             if (Object.keys(textDataToUpdate).length > 0) {
-                 const textUpdateResult = await authService.updateProfile(textDataToUpdate);
-                 // Mescla o resultado da atualização de texto no objeto finalUser
-                 finalUser = { ...finalUser, ...textUpdateResult };
+                const textUpdateResult = await authService.updateProfile(textDataToUpdate);
+                // Mescla o resultado da atualização de texto no objeto finalUser
+                finalUser = { ...finalUser, ...textUpdateResult };
             }
 
             // 3. Atualiza o estado global do contexto e o localStorage com os dados mais recentes e corretos
@@ -220,9 +227,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         } catch (error) {
             console.error('Erro ao atualizar perfil (AuthContext):', error);
-             if (axios.isAxiosError(error) && error.response?.status === 401) {
-                 signOut();
-             }
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                signOut();
+            }
             throw error; // Propaga o erro para quem chamou
         } finally {
             setLoading(false);

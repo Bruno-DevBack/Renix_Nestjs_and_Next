@@ -4,14 +4,14 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { FiMenu, FiX } from 'react-icons/fi';  // Importa o X
+import { FiMenu, FiX } from 'react-icons/fi';
 
 function Navbar() {
   const { usuario, signOut } = useAuth();
   const pathname = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
 
-  if (['/login', '/register', '/'].includes(pathname)) {
+  if (['/login', '/register', '/', '/cadastro'].includes(pathname)) {
     return null;
   }
 
@@ -92,6 +92,19 @@ function Navbar() {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
+      <head>
+        {/* Preload de recursos críticos */}
+        <link rel="preload" href="/logo.png" as="image" />
+        <link rel="preload" href="/avatar.png" as="image" />
+
+        {/* DNS prefetch para APIs externas */}
+        <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+
+        {/* Meta tags para performance */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+        <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+      </head>
       <body>
         <AuthProvider>
           <Navbar />

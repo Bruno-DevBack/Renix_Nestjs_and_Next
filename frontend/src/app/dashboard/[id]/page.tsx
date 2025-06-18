@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PrivateLayout } from '@/components/PrivateLayout';
 import { dashboardService } from '@/services/dashboardService';
 import { Dashboard } from '@/types';
+import { PhoneIcon } from '@heroicons/react/24/outline';
 
 export default function DashboardPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -19,6 +20,67 @@ export default function DashboardPage({ params }: { params: Promise<{ id: string
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
   const resolvedParams = React.use(params);
+  const [showSobreModal, setShowSobreModal] = useState(false);
+  const [showContatoModal, setShowContatoModal] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+
+  const copyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText('renixcorporate@gmail.com');
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
+    } catch (err) {
+      console.error('Erro ao copiar email:', err);
+    }
+  };
+
+  // Componente do Modal
+  const Modal = ({ isOpen, onClose, title, children }: {
+    isOpen: boolean;
+    onClose: () => void;
+    title: string;
+    children: React.ReactNode;
+  }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-xl border border-gray-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header do Modal */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          {/* Conteúdo do Modal */}
+          <div className="p-6 overflow-y-auto max-h-[60vh]">
+            {children}
+          </div>
+          {/* Footer do Modal */}
+          <div className="flex justify-end p-6 border-t border-gray-200">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-[#028264] text-white rounded-lg hover:bg-[#026d54] transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -101,9 +163,11 @@ export default function DashboardPage({ params }: { params: Promise<{ id: string
   const dadosGrafico = [
     { nome: 'Valor Investido', valor: dashboard?.valor_investido || 0 },
     { nome: 'Rendimento Bruto', valor: dashboard?.rendimento?.valor_bruto || 0 },
-    { nome: 'Impostos e Taxas', valor: (dashboard?.rendimento?.imposto_renda || 0) + 
-      (dashboard?.rendimento?.iof || 0) + 
-      (dashboard?.rendimento?.outras_taxas || 0) },
+    {
+      nome: 'Impostos e Taxas', valor: (dashboard?.rendimento?.imposto_renda || 0) +
+        (dashboard?.rendimento?.iof || 0) +
+        (dashboard?.rendimento?.outras_taxas || 0)
+    },
     { nome: 'Valor Líquido', valor: dashboard?.rendimento?.valor_liquido || 0 }
   ];
 
@@ -373,6 +437,13 @@ export default function DashboardPage({ params }: { params: Promise<{ id: string
           </div>
         )}
       </div>
+
+      {/* Notificação de email copiado */}
+      {showNotification && (
+        <div className="fixed top-20 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 notification-slide">
+          Email copiado com sucesso!
+        </div>
+      )}
     </PrivateLayout>
   );
 } 
